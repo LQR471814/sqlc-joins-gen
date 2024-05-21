@@ -38,6 +38,23 @@ create table PSAssignmentType (
         on delete cascade
 );
 
+create table PSUserAssignment (
+    userEmail text not null,
+    assignmentName text not null,
+    courseName text not null,
+    missing int not null,
+    collected int not null,
+    scored real,
+    total real,
+    primary key (userEmail, assignmentName, courseName),
+    foreign key (assignmentName, courseName) references PSAssignment(name, courseName)
+        on update cascade
+        on delete cascade,
+    foreign key (courseName, userEmail) references PSUserCourse(courseName, userEmail)
+        on update cascade
+        on delete cascade
+);
+
 create table PSAssignment (
     name text not null,
     courseName text not null,
