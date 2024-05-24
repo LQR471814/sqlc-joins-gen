@@ -1,72 +1,12 @@
-package main
+package sqlite
 
 import (
 	"fmt"
+	"sqlc-joins-gen/lib/schema"
 	"strings"
 
 	sqlparse "github.com/alicebob/sqlittle/sql"
 )
-
-type Column struct {
-	Name     string
-	Type     ColumnType
-	Nullable bool
-}
-
-type ForeignColumn struct {
-	SourceColumn int
-	TargetColumn int
-}
-
-type ForeignKey struct {
-	TargetTable int
-	On          []ForeignColumn
-}
-
-type Table struct {
-	Name        string
-	Columns     []Column
-	PrimaryKey  []int
-	ForeignKeys []ForeignKey
-}
-
-func (t Table) FindColumnIdx(name string) int {
-	for i, c := range t.Columns {
-		if c.Name == name {
-			return i
-		}
-	}
-	return -1
-}
-
-func (t Table) MustFindColumnIdx(name string) int {
-	idx := t.FindColumnIdx(name)
-	if idx < 0 {
-		panic(fmt.Sprintf("could not find column '%s'", name))
-	}
-	return idx
-}
-
-type Schema struct {
-	Tables []Table
-}
-
-func (s Schema) FindTableIdx(name string) int {
-	for i, t := range s.Tables {
-		if t.Name == name {
-			return i
-		}
-	}
-	return -1
-}
-
-func (s Schema) MustFindTableIdx(name string) int {
-	idx := s.FindTableIdx(name)
-	if idx < 0 {
-		panic(fmt.Sprintf("can't find table '%s'", name))
-	}
-	return idx
-}
 
 func removeCommentLines(block string) string {
 	lines := strings.Split(block, "\n")
@@ -104,13 +44,13 @@ func parseSqlScript(script string) ([]any, error) {
 	return statements, nil
 }
 
-func NewSchema(schemaFile []byte) (Schema, error) {
-	statements, err := parseSqlScript(string(schemaFile))
+func ParseSchema(sqliteScript []byte) (schema.Schema, error) {
+	statements, err := parseSqlScript(string(sqliteScript))
 	if err != nil {
-		return Schema{}, err
+		return schema.Schema{}, err
 	}
 
-	tables := []Table{}
+	tables := []schema.Table{}
 
 	for _, s := range statements {
 		switch s.(type) {
@@ -123,9 +63,9 @@ func NewSchema(schemaFile []byte) (Schema, error) {
 
 		var pkey []int
 
-		columns := []Column{}
+		columns := []schema.Column{}
 		for i, col := range stmt.Columns {
-			columns = append(columns, Column{
+			columns = append(columns, schema.Column{
 				Name:     col.Name,
 				Type:     col.Type,
 				Nullable: col.Null,
@@ -135,7 +75,7 @@ func NewSchema(schemaFile []byte) (Schema, error) {
 			}
 		}
 
-		fkeys := []ForeignKey{}
+		fkeys := []schema.ForeignKey{}
 		for _, intf := range stmt.Constraints {
 			switch cnstr := intf.(type) {
 			case sqlparse.TableForeignKey:
@@ -147,7 +87,7 @@ func NewSchema(schemaFile []byte) (Schema, error) {
 					}
 				}
 				if targetTableIdx < 0 {
-					return Schema{}, fmt.Errorf(
+					return schema.Schema{}, fmt.Errorf(
 						"undefined target table \"%s\" of foreign key in \"%s\"",
 						cnstr.Clause.ForeignTable,
 						stmt.Table,
@@ -155,7 +95,7 @@ func NewSchema(schemaFile []byte) (Schema, error) {
 				}
 				targetTable := tables[targetTableIdx]
 
-				foreignColumns := []ForeignColumn{}
+				foreignColumns := []schema.ForeignColumn{}
 				for i, col := range cnstr.Clause.ForeignColumns {
 					sourceCol := cnstr.Columns[i]
 					sourceColIdx := -1
@@ -166,7 +106,7 @@ func NewSchema(schemaFile []byte) (Schema, error) {
 						}
 					}
 					if sourceColIdx < 0 {
-						return Schema{}, fmt.Errorf(
+						return schema.Schema{}, fmt.Errorf(
 							"undefined source column \"%s\" of foreign key in \"%s\"",
 							sourceCol, stmt.Table,
 						)
@@ -180,7 +120,7 @@ func NewSchema(schemaFile []byte) (Schema, error) {
 						}
 					}
 					if targetColIdx < 0 {
-						return Schema{}, fmt.Errorf(
+						return schema.Schema{}, fmt.Errorf(
 							"undefined target column \"%s\" in target table \"%s\" of foreign key in \"%s\"",
 							col,
 							cnstr.Clause.ForeignTable,
@@ -188,13 +128,13 @@ func NewSchema(schemaFile []byte) (Schema, error) {
 						)
 					}
 
-					foreignColumns = append(foreignColumns, ForeignColumn{
+					foreignColumns = append(foreignColumns, schema.ForeignColumn{
 						SourceColumn: sourceColIdx,
 						TargetColumn: targetColIdx,
 					})
 				}
 
-				fkeys = append(fkeys, ForeignKey{
+				fkeys = append(fkeys, schema.ForeignKey{
 					TargetTable: targetTableIdx,
 					On:          foreignColumns,
 				})
@@ -208,7 +148,7 @@ func NewSchema(schemaFile []byte) (Schema, error) {
 							continue targetColumns
 						}
 					}
-					return Schema{}, fmt.Errorf(
+					return schema.Schema{}, fmt.Errorf(
 						"undefined column \"%s\" of primary key in \"%s\"",
 						indexed,
 						stmt.Table,
@@ -217,7 +157,7 @@ func NewSchema(schemaFile []byte) (Schema, error) {
 			}
 		}
 
-		tables = append(tables, Table{
+		tables = append(tables, schema.Table{
 			Name:        stmt.Table,
 			Columns:     columns,
 			PrimaryKey:  pkey,
@@ -225,5 +165,5 @@ func NewSchema(schemaFile []byte) (Schema, error) {
 		})
 	}
 
-	return Schema{Tables: tables}, nil
+	return schema.Schema{Tables: tables}, nil
 }

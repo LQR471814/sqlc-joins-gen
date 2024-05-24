@@ -5,24 +5,35 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"sqlc-joins-gen/lib/gen"
+	"sqlc-joins-gen/lib/querycfg"
+	"sqlc-joins-gen/lib/sqlc"
+	"sqlc-joins-gen/lib/sqlite"
 
 	"github.com/titanous/json5"
 	"gopkg.in/yaml.v3"
 )
 
-func generate(task CodegenTask) error {
-	schema, err := NewSchema(task.Schema)
+func generate(task sqlc.CodegenTask) error {
+	schema, err := sqlite.ParseSchema(task.Schema)
 	if err != nil {
 		return err
 	}
 
-	var joins []CompositeQuery
-	err = json5.Unmarshal(task.Joins, &joins)
+	var queries []querycfg.Query
+	err = json5.Unmarshal(task.Joins, &queries)
 	if err != nil {
 		return err
 	}
 
-	GenerateCompositeQuery(schema, joins)
+	fromSchema := gen.FromSchema{Schema: schema}
+	for _, query := range queries {
+		fromSchema.Generate(
+			gen.SqliteGenerator{},
+			gen.GolangGenerator{},
+			query,
+		)
+	}
 
 	return nil
 }
@@ -44,7 +55,7 @@ func main() {
 	}
 	defer f.Close()
 
-	sqlcCfg := SqlcConfig{}
+	sqlcCfg := sqlc.Config{}
 	decoder := yaml.NewDecoder(f)
 	err = decoder.Decode(&sqlcCfg)
 	if err != nil {
@@ -52,7 +63,7 @@ func main() {
 		return
 	}
 
-	tasks, err := LoadConfig(path.Dir(*sqlcFile), sqlcCfg)
+	tasks, err := sqlc.LoadConfig(path.Dir(*sqlcFile), sqlcCfg)
 	if err != nil {
 		slog.Error("failed to process sqlc config", "err", err)
 		return

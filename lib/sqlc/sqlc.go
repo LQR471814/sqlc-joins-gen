@@ -1,4 +1,4 @@
-package main
+package sqlc
 
 import (
 	"errors"
@@ -7,11 +7,11 @@ import (
 	"strings"
 )
 
-type SqlcConfig struct {
-	Sql []SqlcTarget `yaml:"sql"`
+type Config struct {
+	Sql []Target `yaml:"sql"`
 }
 
-type SqlcTarget struct {
+type Target struct {
 	Engine  string `yaml:"engine"`
 	Queries string `yaml:"queries"`
 	Schema  string `yaml:"schema"`
@@ -38,8 +38,8 @@ func replaceExt(filename, ext string) string {
 	return filename[:lastDotIdx] + "." + ext
 }
 
-func LoadConfig(cfgDir string, cfg SqlcConfig) ([]CodegenTask, error) {
-	targets := []SqlcTarget{}
+func LoadConfig(cfgDir string, cfg Config) ([]CodegenTask, error) {
+	targets := []Target{}
 	for _, target := range cfg.Sql {
 		if target.Engine == "sqlite" {
 			targets = append(targets, target)

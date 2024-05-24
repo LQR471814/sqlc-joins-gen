@@ -1,7 +1,9 @@
-package main
+package gen
 
 import (
 	"slices"
+	"sqlc-joins-gen/lib/querycfg"
+	"sqlc-joins-gen/lib/schema"
 	"strings"
 	"testing"
 
@@ -9,21 +11,21 @@ import (
 )
 
 func TestGenerateQuerySelect(t *testing.T) {
-	schemas := TESTING_SCHEMAS
+	schemas := schema.TESTING_SCHEMAS
 	testCases := []struct {
-		schema      Schema
+		schema      schema.Schema
 		parentTable string
-		query       CompositeQueryClause
+		query       querycfg.Clause
 		expected    []string
 	}{
 		{
-			schema:      schemas[0].Schema,
+			schema:      schemas[0],
 			parentTable: "Author",
-			query: CompositeQueryClause{
+			query: querycfg.Clause{
 				Columns: map[string]bool{
 					"name": true,
 				},
-				With: map[string]CompositeQueryClause{
+				With: map[string]querycfg.Clause{
 					"Book": {
 						Columns: map[string]bool{
 							"id":   true,
