@@ -1,6 +1,6 @@
 [
     {
-        name: "getUserData",
+        name: "GetUserData",
         return: "first",
         table: "User",
         query: {
