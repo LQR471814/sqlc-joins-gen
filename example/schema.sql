@@ -21,8 +21,8 @@ create table PSUserCourse (
 create table PSUserMeeting (
     userEmail text not null,
     courseName text not null,
-    startTime int not null,
-    endTime int not null,
+    startTime integer not null,
+    endTime integer not null,
     primary key (userEmail, courseName, startTime),
     foreign key (userEmail, courseName) references PSUserCourse(userEmail, courseName)
         on update cascade
@@ -38,12 +38,25 @@ create table PSAssignmentType (
         on delete cascade
 );
 
+create table PSAssignment (
+    name text not null,
+    courseName text not null,
+    assignmentTypeName text not null,
+    description text,
+    duedate integer not null,
+    category text not null,
+    primary key (name, courseName),
+    foreign key (courseName, assignmentTypeName) references PSAssignmentType(courseName, name)
+        on update cascade
+        on delete cascade
+);
+
 create table PSUserAssignment (
     userEmail text not null,
     assignmentName text not null,
     courseName text not null,
-    missing int not null,
-    collected int not null,
+    missing integer not null,
+    collected integer not null,
     scored real,
     total real,
     primary key (userEmail, assignmentName, courseName),
@@ -51,19 +64,6 @@ create table PSUserAssignment (
         on update cascade
         on delete cascade,
     foreign key (courseName, userEmail) references PSUserCourse(courseName, userEmail)
-        on update cascade
-        on delete cascade
-);
-
-create table PSAssignment (
-    name text not null,
-    courseName text not null,
-    assignmentTypeName text not null,
-    description text,
-    duedate int not null,
-    category text not null,
-    primary key (name, courseName),
-    foreign key (courseName, assignmentTypeName) references PSAssignmentType(courseName, name)
         on update cascade
         on delete cascade
 );
@@ -101,7 +101,7 @@ create table MoodleAssignment (
     name text not null,
     courseId text not null,
     description text,
-    duedate int not null,
+    duedate integer not null,
     category text,
     primary key (name, courseId),
     foreign key (courseId) references MoodleCourse(id)

@@ -1,0 +1,45 @@
+[
+    {
+        name: "getUserData",
+        return: "first",
+        table: "User",
+        query: {
+            columns: {
+                gpa: true
+            },
+            with: {
+                PSUserCourse: {
+                    columns: {
+                        courseName: true
+                    },
+                    with: {
+                        PSUserAssignment: {
+                            with: {
+                                PSAssignment: {},
+                            },
+                        },
+                        PSUserMeeting: {}
+                    },
+                },
+                MoodleUserCourse: {
+                    columns: {
+                        courseId: true,
+                        userEmail: false
+                    },
+                    with: {
+                        MoodleCourse: {
+                            with: {
+                                MoodlePage: {},
+                                MoodleAssignment: {},
+                            },
+                        },
+                    },
+                },
+            },
+            where: "User.email = ?",
+            orderBy: {
+                gpa: "asc",
+            }
+        },
+    },
+]
