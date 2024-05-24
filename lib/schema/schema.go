@@ -52,6 +52,10 @@ func (t Table) MustFindColumnIdx(name string) int {
 	return idx
 }
 
+func (t Table) MustFindColumn(name string) Column {
+	return t.Columns[t.MustFindColumnIdx(name)]
+}
+
 type Schema struct {
 	Tables []Table
 }
@@ -71,5 +75,9 @@ func (s Schema) MustFindTableIdx(name string) int {
 		panic(fmt.Sprintf("can't find table '%s'", name))
 	}
 	return idx
+}
+
+func (s Schema) MustFindTable(name string) Table {
+	return s.Tables[s.MustFindTableIdx(name)]
 }
 

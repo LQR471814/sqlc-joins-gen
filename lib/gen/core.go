@@ -43,7 +43,7 @@ func (from FromSchema) getPlStructDef(qclause querycfg.Clause, table schema.Tabl
 	}
 
 	for childTableName, childClause := range qclause.With {
-		childTable := from.Schema.Tables[from.Schema.MustFindTableIdx(childTableName)]
+		childTable := from.Schema.MustFindTable(childTableName)
 		def.Fields.Fields = append(def.Fields.Fields, PlFieldDef{
 			Name: childTableName,
 			Type: PlType{
@@ -68,7 +68,7 @@ func (from FromSchema) getSelectFields(qclause querycfg.Clause, table schema.Tab
 	}
 
 	for tableName, childQuery := range qclause.With {
-		table := from.Schema.Tables[from.Schema.MustFindTableIdx(tableName)]
+		table := from.Schema.MustFindTable(tableName)
 		from.getSelectFields(childQuery, table, out)
 	}
 }
@@ -142,7 +142,7 @@ func (from FromSchema) Generate(
 	selectStmt := from.getSelect(query)
 	structDef := from.getPlStructDef(
 		query.Clause,
-		from.Schema.Tables[from.Schema.MustFindTableIdx(query.Table)],
+		from.Schema.MustFindTable(query.Table),
 	)
 	fmt.Println(sqlgen.Select(selectStmt))
 	fmt.Println(plgen.StructDef(structDef))

@@ -10,18 +10,18 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestGenerateQuerySelect(t *testing.T) {
+func TestGetSelectFields(t *testing.T) {
 	schemas := schema.TESTING_SCHEMAS
 	testCases := []struct {
 		schema      schema.Schema
 		parentTable string
-		query       querycfg.Clause
-		expected    []string
+		qclause     querycfg.Clause
+		expected    []SqlSelectField
 	}{
 		{
 			schema:      schemas[0],
 			parentTable: "Author",
-			query: querycfg.Clause{
+			qclause: querycfg.Clause{
 				Columns: map[string]bool{
 					"name": true,
 				},
@@ -35,32 +35,60 @@ func TestGenerateQuerySelect(t *testing.T) {
 					"BookAuthorRelevanceRating": {},
 				},
 			},
-			expected: []string{
-				"Author.name as Author_name",
-				"Book.id as Book_id",
-				"Book.name as Book_name",
-				"BookAuthorRelevanceRating.authorId as BookAuthorRelevanceRating_authorId",
-				"BookAuthorRelevanceRating.bookId as BookAuthorRelevanceRating_bookId",
-				"BookAuthorRelevanceRating.ratedBy as BookAuthorRelevanceRating_ratedBy",
-				"BookAuthorRelevanceRating.rating as BookAuthorRelevanceRating_rating",
+			expected: []SqlSelectField{
+				SqlSelectField{
+					Table: "Author",
+					Attr:  "name",
+					As:    "Author_name",
+				},
+				SqlSelectField{
+					Table: "Book",
+					Attr:  "id",
+					As:    "Book_id",
+				},
+				SqlSelectField{
+					Table: "Book",
+					Attr:  "name",
+					As:    "Book_name",
+				},
+				SqlSelectField{
+					Table: "BookAuthorRelevanceRating",
+					Attr:  "authorId",
+					As:    "BookAuthorRelevanceRating_authorId",
+				},
+				SqlSelectField{
+					Table: "BookAuthorRelevanceRating",
+					Attr:  "bookId",
+					As:    "BookAuthorRelevanceRating_bookId",
+				},
+				SqlSelectField{
+					Table: "BookAuthorRelevanceRating",
+					Attr:  "ratedBy",
+					As:    "BookAuthorRelevanceRating_ratedBy",
+				},
+				SqlSelectField{
+					Table: "BookAuthorRelevanceRating",
+					Attr:  "rating",
+					As:    "BookAuthorRelevanceRating_rating",
+				},
 			},
 		},
 	}
 
 	for _, test := range testCases {
-		generator := compositeQueryGenerator{schema: test.schema}
-		result := generator.generateSelectFields(test.query, test.parentTable)
+		fromSchema := FromSchema{Schema: test.schema}
+		fields := []SqlSelectField{}
+		fromSchema.getSelectFields(
+			test.qclause,
+			test.schema.MustFindTable(test.parentTable),
+			&fields,
+		)
 
-		processed := strings.Split(result, "\n")
-		for i, e := range processed {
-			processed[i] = strings.Trim(e, " \n\t,")
+		result := make([]string, len(fields))
+		for i, f := range fields {
+			result[i] = f.As
 		}
-		if processed[len(processed)-1] == "" {
-			processed = processed[:len(processed)-1]
-		}
-
-		slices.Sort(processed)
-		slices.Sort(test.expected)
+		slices.Sort(result)
 
 		diff := cmp.Diff(processed, test.expected)
 		if diff != "" {
