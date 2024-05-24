@@ -1,66 +1,138 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
-type JoinsGenerator struct {
-	Schema Schema
-	Joins  JoinsList
+type compositeQueryGenerator struct {
+	schema Schema
 }
 
-func (j JoinsGenerator) generateQuerySelect(query TableQuery, parentTable string) string {
-	selects := ""
-
+func (g compositeQueryGenerator) getColumns(query CompositeQueryClause, tableName string) []string {
+	columns := []string{}
 	for col, enabled := range query.Columns {
 		if enabled {
-			selects += fmt.Sprintf(
-				"    %s.%s as %s_%s,\n",
-				parentTable,
-				col,
-				parentTable,
-				col,
-			)
+			columns = append(columns, col)
 		}
 	}
+	if len(columns) > 0 {
+		return columns
+	}
 
-	if len(query.Columns) == 0 {
-		idx := j.Schema.FindTableIdx(parentTable)
-		if idx < 0 {
-			panic(fmt.Sprintf("could not find table %s", parentTable))
-		}
+	idx := g.schema.FindTableIdx(tableName)
+	if idx < 0 {
+		panic(fmt.Sprintf("could not find table '%s'", tableName))
+	}
 
-		for _, col := range j.Schema.Tables[idx].Columns {
-			selects += fmt.Sprintf(
-				"    %s.%s as %s_%s,\n",
-				parentTable,
-				col.Name,
-				parentTable,
-				col.Name,
-			)
-		}
+	table := g.schema.Tables[idx]
+	for _, col := range table.Columns {
+		columns = append(columns, col.Name)
+	}
+	return columns
+}
+
+func (g compositeQueryGenerator) generateGoDataStructureClause(query CompositeQueryClause, table string) string {
+	structure := "{"
+
+	columns := g.getColumns(query, table)
+	for _, col := range columns {
+
+	}
+}
+
+func (g compositeQueryGenerator) generateGoDataStructure(def CompositeQuery) string {
+	return fmt.Sprintf(
+		"type CompQuery%s struct %s",
+		ToGoIdentifier(def.Table),
+		g.generateGoDataStructureClause(def.Query, def.Table),
+	)
+}
+
+func (g compositeQueryGenerator) generateSelectFields(query CompositeQueryClause, table string) string {
+	selects := ""
+
+	columns := g.getColumns(query, table)
+	for _, col := range columns {
+		selects += fmt.Sprintf(
+			"    %s.%s as %s_%s,\n",
+			table,
+			col,
+			table,
+			col,
+		)
 	}
 
 	for table, query := range query.With {
-		selects += j.generateQuerySelect(query, table)
+		selects += g.generateSelectFields(query, table)
 	}
 
 	return selects
 }
 
-func (j JoinsGenerator) generateQueryJoins(query TableQuery, parentTable string) string {
+func (g compositeQueryGenerator) generateJoinClause(source, target int) string {
+	s := g.schema
+	sourceTable := s.Tables[source]
+	targetTable := s.Tables[target]
+
+	for _, fkey := range sourceTable.ForeignKeys {
+		if fkey.TargetTable == target {
+			clause := []string{}
+			for _, col := range fkey.On {
+				clause = append(clause, fmt.Sprintf(
+					"%s.%s = %s.%s",
+					sourceTable.Name,
+					sourceTable.Columns[col.SourceColumn].Name,
+					targetTable.Name,
+					targetTable.Columns[col.TargetColumn].Name,
+				))
+			}
+			return fmt.Sprintf(
+				"inner join %s on %s",
+				targetTable.Name,
+				strings.Join(clause, " and "),
+			)
+		}
+	}
+
+	for _, fkey := range targetTable.ForeignKeys {
+		if fkey.TargetTable == source {
+			clause := []string{}
+			for _, col := range fkey.On {
+				clause = append(clause, fmt.Sprintf(
+					"%s.%s = %s.%s",
+					targetTable.Name,
+					targetTable.Columns[col.SourceColumn].Name,
+					sourceTable.Name,
+					sourceTable.Columns[col.TargetColumn].Name,
+				))
+			}
+			return fmt.Sprintf(
+				"inner join %s on %s",
+				targetTable.Name,
+				strings.Join(clause, " and "),
+			)
+		}
+	}
+
+	return ""
+}
+
+func (g compositeQueryGenerator) generateJoins(clause CompositeQueryClause, table string) string {
 	joins := ""
-	for table, query := range query.With {
-		joins += "    " + j.Schema.MakeJoinClause(
-			j.Schema.FindTableIdx(parentTable),
-			j.Schema.FindTableIdx(table),
+	for table, query := range clause.With {
+		joins += "    " + g.generateJoinClause(
+			g.schema.FindTableIdx(table),
+			g.schema.FindTableIdx(table),
 		) + "\n"
-		joins += j.generateQueryJoins(query, table)
+		joins += g.generateJoins(query, table)
 	}
 	return joins
 }
 
-func (j JoinsGenerator) generateQuerySql(def JoinQueryDef) string {
-	joins := j.generateQueryJoins(def.Query, def.Table)
-	selects := j.generateQuerySelect(def.Query, def.Table)
+func (g compositeQueryGenerator) generateSql(def CompositeQuery) string {
+	joins := g.generateJoins(def.Query, def.Table)
+	selects := g.generateSelectFields(def.Query, def.Table)
 
 	if selects == "" {
 		selects = " * "
@@ -77,8 +149,9 @@ func (j JoinsGenerator) generateQuerySql(def JoinQueryDef) string {
 	return result[:len(result)-1]
 }
 
-func (j JoinsGenerator) Generate() {
-	for _, def := range j.Joins {
-		fmt.Println(j.generateQuerySql(def))
+func GenerateCompositeQuery(schema Schema, queries []CompositeQuery) {
+	g := compositeQueryGenerator{schema: schema}
+	for _, def := range queries {
+		fmt.Println(g.generateSql(def))
 	}
 }

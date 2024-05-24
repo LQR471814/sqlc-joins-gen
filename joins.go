@@ -1,26 +1,24 @@
 package main
 
-type JoinsList = []JoinQueryDef
-
-type JoinQueryDef struct {
-	Name   string        `json:"name"`
-	Return ReturnMethods `json:"return"`
-	Table  string        `json:"table"`
-	Query  TableQuery    `json:"query"`
+type CompositeQuery struct {
+	Name   string               `json:"name"`
+	Return CompositeQueryReturn `json:"return"`
+	Table  string               `json:"table"`
+	Query  CompositeQueryClause `json:"query"`
 }
 
-type TableQuery struct {
-	Columns map[string]bool       `json:"columns,omitempty"`
-	With    map[string]TableQuery `json:"with,omitempty"`
-	Where   string                `json:"where,omitempty"`
-	OrderBy map[string]string     `json:"orderBy,omitempty"`
-	Limit   int                   `json:"limit,omitempty"`
-	Offset  int                   `json:"offset,omitempty"`
+type CompositeQueryClause struct {
+	Columns map[string]bool                 `json:"columns,omitempty"`
+	With    map[string]CompositeQueryClause `json:"with,omitempty"`
+	Where   string                          `json:"where,omitempty"`
+	OrderBy map[string]string               `json:"orderBy,omitempty"`
+	Limit   int                             `json:"limit,omitempty"`
+	Offset  int                             `json:"offset,omitempty"`
 }
 
-type ReturnMethods = string
+type CompositeQueryReturn = string
 
 const (
-	FIRST ReturnMethods = "first"
-	MANY                = "many"
+	FIRST CompositeQueryReturn = "first"
+	MANY                       = "many"
 )

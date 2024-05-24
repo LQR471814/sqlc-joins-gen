@@ -16,17 +16,13 @@ func generate(task CodegenTask) error {
 		return err
 	}
 
-	var joins JoinsList
+	var joins []CompositeQuery
 	err = json5.Unmarshal(task.Joins, &joins)
 	if err != nil {
 		return err
 	}
 
-	generator := JoinsGenerator{
-		Schema: schema,
-		Joins:  joins,
-	}
-	generator.Generate()
+	GenerateCompositeQuery(schema, joins)
 
 	return nil
 }

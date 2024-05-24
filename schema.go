@@ -7,14 +7,6 @@ import (
 	sqlparse "github.com/alicebob/sqlittle/sql"
 )
 
-type ColumnType = string
-
-const (
-	TEXT ColumnType = "text"
-	INT             = "integer"
-	REAL            = "real"
-)
-
 type Column struct {
 	Name     string
 	Type     ColumnType
@@ -49,53 +41,6 @@ func (s Schema) FindTableIdx(name string) int {
 		}
 	}
 	return -1
-}
-
-func (s Schema) MakeJoinClause(source, target int) string {
-	sourceTable := s.Tables[source]
-	targetTable := s.Tables[target]
-
-	for _, fkey := range sourceTable.ForeignKeys {
-		if fkey.TargetTable == target {
-			clause := []string{}
-			for _, col := range fkey.On {
-				clause = append(clause, fmt.Sprintf(
-					"%s.%s = %s.%s",
-					sourceTable.Name,
-					sourceTable.Columns[col.SourceColumn].Name,
-					targetTable.Name,
-					targetTable.Columns[col.TargetColumn].Name,
-				))
-			}
-			return fmt.Sprintf(
-				"inner join %s on %s",
-				targetTable.Name,
-				strings.Join(clause, " and "),
-			)
-		}
-	}
-
-	for _, fkey := range targetTable.ForeignKeys {
-		if fkey.TargetTable == source {
-			clause := []string{}
-			for _, col := range fkey.On {
-				clause = append(clause, fmt.Sprintf(
-					"%s.%s = %s.%s",
-					targetTable.Name,
-					targetTable.Columns[col.SourceColumn].Name,
-					sourceTable.Name,
-					sourceTable.Columns[col.TargetColumn].Name,
-				))
-			}
-			return fmt.Sprintf(
-				"inner join %s on %s",
-				targetTable.Name,
-				strings.Join(clause, " and "),
-			)
-		}
-	}
-
-	return ""
 }
 
 func removeCommentLines(block string) string {

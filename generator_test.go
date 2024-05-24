@@ -9,21 +9,21 @@ import (
 )
 
 func TestGenerateQuerySelect(t *testing.T) {
-	schemas := TestingSchemas()
+	schemas := TESTING_SCHEMAS
 	testCases := []struct {
 		schema      Schema
 		parentTable string
-		query       TableQuery
+		query       CompositeQueryClause
 		expected    []string
 	}{
 		{
 			schema:      schemas[0].Schema,
 			parentTable: "Author",
-			query: TableQuery{
+			query: CompositeQueryClause{
 				Columns: map[string]bool{
 					"name": true,
 				},
-				With: map[string]TableQuery{
+				With: map[string]CompositeQueryClause{
 					"Book": {
 						Columns: map[string]bool{
 							"id":   true,
@@ -46,18 +46,8 @@ func TestGenerateQuerySelect(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		generator := JoinsGenerator{
-			Schema: test.schema,
-			Joins: JoinsList{
-				JoinQueryDef{
-					Name:   "TestQuery",
-					Return: "one",
-					Table:  test.parentTable,
-					Query:  test.query,
-				},
-			},
-		}
-		result := generator.generateQuerySelect(test.query, test.parentTable)
+		generator := compositeQueryGenerator{schema: test.schema}
+		result := generator.generateSelectFields(test.query, test.parentTable)
 
 		processed := strings.Split(result, "\n")
 		for i, e := range processed {
@@ -73,6 +63,52 @@ func TestGenerateQuerySelect(t *testing.T) {
 		diff := cmp.Diff(processed, test.expected)
 		if diff != "" {
 			t.Fatalf("different test result than expected:\n%s", diff)
+		}
+	}
+}
+
+func TestGenerateJoinClause(t *testing.T) {
+	schemas := TESTING_SCHEMAS
+	testCases := []struct {
+		schema   Schema
+		source   int
+		target   int
+		expected string
+	}{
+		{
+			schema:   schemas[0].Schema,
+			source:   0,
+			target:   1,
+			expected: "inner join Book on Book.authorId = Author.id",
+		},
+		{
+			schema:   schemas[0].Schema,
+			source:   1,
+			target:   2,
+			expected: "inner join BookAuthorRelevance on BookAuthorRelevance.bookId = Book.id",
+		},
+		{
+			schema:   schemas[0].Schema,
+			source:   2,
+			target:   3,
+			expected: "inner join BookAuthorRelevanceRating on BookAuthorRelevanceRating.authorId = BookAuthorRelevance.authorId and BookAuthorRelevanceRating.bookId = BookAuthorRelevance.bookId",
+		},
+		{
+			schema:   schemas[0].Schema,
+			source:   0,
+			target:   3,
+			expected: "inner join BookAuthorRelevanceRating on BookAuthorRelevanceRating.ratedBy = Author.id",
+		},
+	}
+	for _, test := range testCases {
+		generator := compositeQueryGenerator{schema: test.schema}
+		result := generator.generateJoinClause(test.source, test.target)
+		if result != test.expected {
+			t.Fatalf(
+				"unexpected differences in generated join clause:\n- expect: %s\n- got:    %s\n",
+				test.expected,
+				result,
+			)
 		}
 	}
 }
