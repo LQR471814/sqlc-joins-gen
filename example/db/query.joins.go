@@ -2,42 +2,27 @@
 
 package db
 
-import (
-	"context"
-	"database/sql"
-)
-
 // Table: User
 type GetUserData struct {
 	Gpa              float64
 	Email            string
-	MoodleUserCourse []GetUserDataMoodleUserCourse
-	PSUserCourse     []GetUserDataMoodleUserCourse
-}
-
-// Table: MoodleUserCourse
-type GetUserDataMoodleUserCourse struct {
-	CourseId     string
-	UserEmail    string
-	MoodleCourse GetUserDataPSUserCourse
+	PSUserCourse     []GetUserDataPSUserCourse
+	MoodleUserCourse []GetUserDataPSUserCourse
 }
 
 // Table: PSUserCourse
 type GetUserDataPSUserCourse struct {
 	CourseName       string
 	UserEmail        string
-	PSUserAssignment []GetUserDataMoodleUserCourseMoodleCourse
-	PSUserMeeting    []GetUserDataMoodleUserCourseMoodleCourse
+	PSUserAssignment []GetUserDataMoodleUserCourse
+	PSUserMeeting    []GetUserDataMoodleUserCourse
 }
 
-// Table: MoodleCourse
-type GetUserDataMoodleUserCourseMoodleCourse struct {
-	Id               string
-	CourseName       string
-	Teacher          sql.NullString
-	Zoom             sql.NullString
-	MoodlePage       []GetUserDataPSUserCoursePSUserAssignment
-	MoodleAssignment []GetUserDataPSUserCoursePSUserAssignment
+// Table: MoodleUserCourse
+type GetUserDataMoodleUserCourse struct {
+	CourseId     string
+	UserEmail    string
+	MoodleCourse GetUserDataPSUserCoursePSUserAssignment
 }
 
 // Table: PSUserAssignment
@@ -60,6 +45,26 @@ type GetUserDataPSUserCoursePSUserMeeting struct {
 	EndTime    int
 }
 
+// Table: MoodleCourse
+type GetUserDataMoodleUserCourseMoodleCourse struct {
+	Id               string
+	CourseName       string
+	Teacher          sql.NullString
+	Zoom             sql.NullString
+	MoodlePage       []GetUserDataPSUserCoursePSUserAssignmentPSAssignment
+	MoodleAssignment []GetUserDataPSUserCoursePSUserAssignmentPSAssignment
+}
+
+// Table: PSAssignment
+type GetUserDataPSUserCoursePSUserAssignmentPSAssignment struct {
+	Name               string
+	CourseName         string
+	AssignmentTypeName string
+	Description        sql.NullString
+	Duedate            int
+	Category           string
+}
+
 // Table: MoodlePage
 type GetUserDataMoodleUserCourseMoodleCourseMoodlePage struct {
 	CourseId string
@@ -74,16 +79,6 @@ type GetUserDataMoodleUserCourseMoodleCourseMoodleAssignment struct {
 	Description sql.NullString
 	Duedate     int
 	Category    sql.NullString
-}
-
-// Table: PSAssignment
-type GetUserDataPSUserCoursePSUserAssignmentPSAssignment struct {
-	Name               string
-	CourseName         string
-	AssignmentTypeName string
-	Description        sql.NullString
-	Duedate            int
-	Category           string
 }
 
 const queryGetUserData = `select
@@ -133,14 +128,14 @@ inner join MoodlePage on MoodlePage.courseId = MoodleCourse.id
 inner join MoodleAssignment on MoodleAssignment.courseId = MoodleCourse.id
 where User.email = ?
 order by
-PSUserMeeting.userEmail asc,
-PSUserMeeting.courseName asc,
-PSUserMeeting.startTime asc,
 PSAssignment.name asc,
 PSAssignment.courseName asc,
 PSUserAssignment.userEmail asc,
 PSUserAssignment.assignmentName asc,
 PSUserAssignment.courseName asc,
+PSUserMeeting.userEmail asc,
+PSUserMeeting.courseName asc,
+PSUserMeeting.startTime asc,
 PSUserCourse.userEmail asc,
 PSUserCourse.courseName asc,
 MoodlePage.url asc,
@@ -161,74 +156,33 @@ func (q *Queries) GetUserData(ctx context.Context, args any) ([]GetUserData, err
 	defer rows.Close()
 
 	var GetUserDataMap map[string]GetUserData
-	var GetUserDataMoodleUserCourseMap map[string]GetUserDataMoodleUserCourse
 	var GetUserDataPSUserCourseMap map[string]GetUserDataPSUserCourse
-	var GetUserDataMoodleUserCourseMoodleCourseMap map[string]GetUserDataMoodleUserCourseMoodleCourse
+	var GetUserDataMoodleUserCourseMap map[string]GetUserDataMoodleUserCourse
 	var GetUserDataPSUserCoursePSUserAssignmentMap map[string]GetUserDataPSUserCoursePSUserAssignment
 	var GetUserDataPSUserCoursePSUserMeetingMap map[string]GetUserDataPSUserCoursePSUserMeeting
+	var GetUserDataMoodleUserCourseMoodleCourseMap map[string]GetUserDataMoodleUserCourseMoodleCourse
+	var GetUserDataPSUserCoursePSUserAssignmentPSAssignmentMap map[string]GetUserDataPSUserCoursePSUserAssignmentPSAssignment
 	var GetUserDataMoodleUserCourseMoodleCourseMoodlePageMap map[string]GetUserDataMoodleUserCourseMoodleCourseMoodlePage
 	var GetUserDataMoodleUserCourseMoodleCourseMoodleAssignmentMap map[string]GetUserDataMoodleUserCourseMoodleCourseMoodleAssignment
-	var GetUserDataPSUserCoursePSUserAssignmentPSAssignmentMap map[string]GetUserDataPSUserCoursePSUserAssignmentPSAssignment
 
 	for rows.Next() {
 		var GetUserData GetUserData
-		var GetUserDataMoodleUserCourse GetUserDataMoodleUserCourse
 		var GetUserDataPSUserCourse GetUserDataPSUserCourse
-		var GetUserDataMoodleUserCourseMoodleCourse GetUserDataMoodleUserCourseMoodleCourse
+		var GetUserDataMoodleUserCourse GetUserDataMoodleUserCourse
 		var GetUserDataPSUserCoursePSUserAssignment GetUserDataPSUserCoursePSUserAssignment
 		var GetUserDataPSUserCoursePSUserMeeting GetUserDataPSUserCoursePSUserMeeting
+		var GetUserDataMoodleUserCourseMoodleCourse GetUserDataMoodleUserCourseMoodleCourse
+		var GetUserDataPSUserCoursePSUserAssignmentPSAssignment GetUserDataPSUserCoursePSUserAssignmentPSAssignment
 		var GetUserDataMoodleUserCourseMoodleCourseMoodlePage GetUserDataMoodleUserCourseMoodleCourseMoodlePage
 		var GetUserDataMoodleUserCourseMoodleCourseMoodleAssignment GetUserDataMoodleUserCourseMoodleCourseMoodleAssignment
-		var GetUserDataPSUserCoursePSUserAssignmentPSAssignment GetUserDataPSUserCoursePSUserAssignmentPSAssignment
 
 		err := rows.Scan(
 			&GetUserData.Gpa,
 			&GetUserData.Email,
-			&GetUserDataMoodleUserCourse.CourseId,
-			&GetUserDataMoodleUserCourse.UserEmail,
 			&GetUserDataPSUserCourse.CourseName,
 			&GetUserDataPSUserCourse.UserEmail,
-			&GetUserDataMoodleUserCourseMoodleCourse.Id,
-			&GetUserDataMoodleUserCourseMoodleCourse.CourseName,
-			&GetUserDataMoodleUserCourseMoodleCourse.Teacher,
-			&GetUserDataMoodleUserCourseMoodleCourse.Zoom,
-			&GetUserDataPSUserCoursePSUserAssignment.UserEmail,
-			&GetUserDataPSUserCoursePSUserAssignment.AssignmentName,
-			&GetUserDataPSUserCoursePSUserAssignment.CourseName,
-			&GetUserDataPSUserCoursePSUserAssignment.Missing,
-			&GetUserDataPSUserCoursePSUserAssignment.Collected,
-			&GetUserDataPSUserCoursePSUserAssignment.Scored,
-			&GetUserDataPSUserCoursePSUserAssignment.Total,
-			&GetUserDataPSUserCoursePSUserMeeting.UserEmail,
-			&GetUserDataPSUserCoursePSUserMeeting.CourseName,
-			&GetUserDataPSUserCoursePSUserMeeting.StartTime,
-			&GetUserDataPSUserCoursePSUserMeeting.EndTime,
-			&GetUserDataPSUserCoursePSUserAssignment.UserEmail,
-			&GetUserDataPSUserCoursePSUserAssignment.AssignmentName,
-			&GetUserDataPSUserCoursePSUserAssignment.CourseName,
-			&GetUserDataPSUserCoursePSUserAssignment.Missing,
-			&GetUserDataPSUserCoursePSUserAssignment.Collected,
-			&GetUserDataPSUserCoursePSUserAssignment.Scored,
-			&GetUserDataPSUserCoursePSUserAssignment.Total,
-			&GetUserDataPSUserCoursePSUserMeeting.UserEmail,
-			&GetUserDataPSUserCoursePSUserMeeting.CourseName,
-			&GetUserDataPSUserCoursePSUserMeeting.StartTime,
-			&GetUserDataPSUserCoursePSUserMeeting.EndTime,
-			&GetUserDataMoodleUserCourseMoodleCourse.Id,
-			&GetUserDataMoodleUserCourseMoodleCourse.CourseName,
-			&GetUserDataMoodleUserCourseMoodleCourse.Teacher,
-			&GetUserDataMoodleUserCourseMoodleCourse.Zoom,
-			&GetUserDataPSUserCoursePSUserAssignment.UserEmail,
-			&GetUserDataPSUserCoursePSUserAssignment.AssignmentName,
-			&GetUserDataPSUserCoursePSUserAssignment.CourseName,
-			&GetUserDataPSUserCoursePSUserAssignment.Missing,
-			&GetUserDataPSUserCoursePSUserAssignment.Collected,
-			&GetUserDataPSUserCoursePSUserAssignment.Scored,
-			&GetUserDataPSUserCoursePSUserAssignment.Total,
-			&GetUserDataPSUserCoursePSUserMeeting.UserEmail,
-			&GetUserDataPSUserCoursePSUserMeeting.CourseName,
-			&GetUserDataPSUserCoursePSUserMeeting.StartTime,
-			&GetUserDataPSUserCoursePSUserMeeting.EndTime,
+			&GetUserDataMoodleUserCourse.CourseId,
+			&GetUserDataMoodleUserCourse.UserEmail,
 			&GetUserDataPSUserCoursePSUserAssignment.UserEmail,
 			&GetUserDataPSUserCoursePSUserAssignment.AssignmentName,
 			&GetUserDataPSUserCoursePSUserAssignment.CourseName,
@@ -242,12 +196,21 @@ func (q *Queries) GetUserData(ctx context.Context, args any) ([]GetUserData, err
 			&GetUserDataPSUserCoursePSUserMeeting.EndTime,
 			&GetUserDataMoodleUserCourse.CourseId,
 			&GetUserDataMoodleUserCourse.UserEmail,
+			&GetUserDataPSUserCoursePSUserAssignment.UserEmail,
+			&GetUserDataPSUserCoursePSUserAssignment.AssignmentName,
+			&GetUserDataPSUserCoursePSUserAssignment.CourseName,
+			&GetUserDataPSUserCoursePSUserAssignment.Missing,
+			&GetUserDataPSUserCoursePSUserAssignment.Collected,
+			&GetUserDataPSUserCoursePSUserAssignment.Scored,
+			&GetUserDataPSUserCoursePSUserAssignment.Total,
+			&GetUserDataPSUserCoursePSUserMeeting.UserEmail,
+			&GetUserDataPSUserCoursePSUserMeeting.CourseName,
+			&GetUserDataPSUserCoursePSUserMeeting.StartTime,
+			&GetUserDataPSUserCoursePSUserMeeting.EndTime,
 			&GetUserDataPSUserCourse.CourseName,
 			&GetUserDataPSUserCourse.UserEmail,
-			&GetUserDataMoodleUserCourseMoodleCourse.Id,
-			&GetUserDataMoodleUserCourseMoodleCourse.CourseName,
-			&GetUserDataMoodleUserCourseMoodleCourse.Teacher,
-			&GetUserDataMoodleUserCourseMoodleCourse.Zoom,
+			&GetUserDataMoodleUserCourse.CourseId,
+			&GetUserDataMoodleUserCourse.UserEmail,
 			&GetUserDataPSUserCoursePSUserAssignment.UserEmail,
 			&GetUserDataPSUserCoursePSUserAssignment.AssignmentName,
 			&GetUserDataPSUserCoursePSUserAssignment.CourseName,
@@ -259,32 +222,8 @@ func (q *Queries) GetUserData(ctx context.Context, args any) ([]GetUserData, err
 			&GetUserDataPSUserCoursePSUserMeeting.CourseName,
 			&GetUserDataPSUserCoursePSUserMeeting.StartTime,
 			&GetUserDataPSUserCoursePSUserMeeting.EndTime,
-			&GetUserDataPSUserCoursePSUserAssignment.UserEmail,
-			&GetUserDataPSUserCoursePSUserAssignment.AssignmentName,
-			&GetUserDataPSUserCoursePSUserAssignment.CourseName,
-			&GetUserDataPSUserCoursePSUserAssignment.Missing,
-			&GetUserDataPSUserCoursePSUserAssignment.Collected,
-			&GetUserDataPSUserCoursePSUserAssignment.Scored,
-			&GetUserDataPSUserCoursePSUserAssignment.Total,
-			&GetUserDataPSUserCoursePSUserMeeting.UserEmail,
-			&GetUserDataPSUserCoursePSUserMeeting.CourseName,
-			&GetUserDataPSUserCoursePSUserMeeting.StartTime,
-			&GetUserDataPSUserCoursePSUserMeeting.EndTime,
-			&GetUserDataMoodleUserCourseMoodleCourse.Id,
-			&GetUserDataMoodleUserCourseMoodleCourse.CourseName,
-			&GetUserDataMoodleUserCourseMoodleCourse.Teacher,
-			&GetUserDataMoodleUserCourseMoodleCourse.Zoom,
-			&GetUserDataPSUserCoursePSUserAssignment.UserEmail,
-			&GetUserDataPSUserCoursePSUserAssignment.AssignmentName,
-			&GetUserDataPSUserCoursePSUserAssignment.CourseName,
-			&GetUserDataPSUserCoursePSUserAssignment.Missing,
-			&GetUserDataPSUserCoursePSUserAssignment.Collected,
-			&GetUserDataPSUserCoursePSUserAssignment.Scored,
-			&GetUserDataPSUserCoursePSUserAssignment.Total,
-			&GetUserDataPSUserCoursePSUserMeeting.UserEmail,
-			&GetUserDataPSUserCoursePSUserMeeting.CourseName,
-			&GetUserDataPSUserCoursePSUserMeeting.StartTime,
-			&GetUserDataPSUserCoursePSUserMeeting.EndTime,
+			&GetUserDataMoodleUserCourse.CourseId,
+			&GetUserDataMoodleUserCourse.UserEmail,
 			&GetUserDataPSUserCoursePSUserAssignment.UserEmail,
 			&GetUserDataPSUserCoursePSUserAssignment.AssignmentName,
 			&GetUserDataPSUserCoursePSUserAssignment.CourseName,

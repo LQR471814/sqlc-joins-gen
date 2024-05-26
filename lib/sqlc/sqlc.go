@@ -43,8 +43,11 @@ func replaceExt(filename, ext string) string {
 	return filename[:lastDotIdx] + "." + ext
 }
 
-func readSqlcConfig(dir string) (*os.File, error) {
-	f, err := os.Open(path.Join(dir, "sqlc.yaml"))
+func readSqlcConfig(pathOrDir string, isDir bool) (*os.File, error) {
+	if !isDir {
+		return os.Open(pathOrDir)
+	}
+	f, err := os.Open(path.Join(pathOrDir, "sqlc.yaml"))
 	if err == nil {
 		return f, nil
 	}
@@ -52,7 +55,7 @@ func readSqlcConfig(dir string) (*os.File, error) {
 		return nil, err
 	}
 
-	f, err = os.Open(path.Join(dir, "sqlc.yml"))
+	f, err = os.Open(path.Join(pathOrDir, "sqlc.yml"))
 	if err == nil {
 		return f, nil
 	}
@@ -62,16 +65,21 @@ func readSqlcConfig(dir string) (*os.File, error) {
 
 	return nil, fmt.Errorf(
 		"could not find sqlc.yaml or sqlc.yml in '%s'",
-		dir,
+		pathOrDir,
 	)
 }
 
-func LoadConfig(dir string) ([]CodegenTask, error) {
-	f, err := readSqlcConfig(dir)
+func LoadConfig(pathOrDir string, isDir bool) ([]CodegenTask, error) {
+	f, err := readSqlcConfig(pathOrDir, isDir)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
+
+	dir := pathOrDir
+	if !isDir {
+		dir = path.Dir(pathOrDir)
+	}
 
 	cfg := Config{}
 	decoder := yaml.NewDecoder(f)

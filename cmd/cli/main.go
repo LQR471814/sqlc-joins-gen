@@ -4,7 +4,6 @@ import (
 	"flag"
 	"log/slog"
 	"os"
-	"path"
 	"sqlc-joins-gen/lib/gen"
 	"sqlc-joins-gen/lib/querycfg"
 	"sqlc-joins-gen/lib/sqlc"
@@ -38,16 +37,18 @@ func main() {
 	sqlcFile := flag.String("config", "", "path to the sqlc.yaml config file")
 	flag.Parse()
 
-	dir, err := os.Getwd()
+	isDir := true
+	pathOrDir, err := os.Getwd()
 	if err != nil {
 		slog.Error("failed to get current working dir", "err", err)
 		return
 	}
 	if *sqlcFile != "" {
-		dir = path.Dir(*sqlcFile)
+		pathOrDir = *sqlcFile
+		isDir = false
 	}
 
-	tasks, err := sqlc.LoadConfig(dir)
+	tasks, err := sqlc.LoadConfig(pathOrDir, isDir)
 	if err != nil {
 		slog.Error("failed to read sqlc config", "err", err)
 		return
