@@ -38,9 +38,9 @@ func upperGoIdentifier(name string) string {
 
 type GolangGenerator struct{}
 
-func (g GolangGenerator) typeStr(t PlType) string {
+func (g GolangGenerator) typeStr(defs []PlRowDef, t PlType) string {
 	if t.IsStruct {
-		return t.Struct.Name
+		return defs[t.Struct].DefName
 	}
 	switch t.Primitive {
 	case INT:
@@ -67,86 +67,19 @@ func (g GolangGenerator) typeStr(t PlType) string {
 	panic(fmt.Sprintf("unknown primitive type '%d'", t.Primitive))
 }
 
-type GoStructField struct {
-	Key  string
-	Type string
-}
-
-type GoStructDef struct {
-	StructName string
-	TableName  string
-	Fields     []GoStructField
-}
-
-func (g GolangGenerator) structDef(def PlRowDef) []GoStructDef {
-	var defs []GoStructDef
-	queue := []struct {
-		structName string
-		def        PlRowDef
-	}{{def: def}}
-
-	for len(queue) > 0 {
-		row := queue[0]
-
-		def := GoStructDef{
-			StructName: upperGoIdentifier(row.structName),
-			TableName:  row.def.Name,
-		}
-		for i, field := range row.def.Fields {
-			typeStr := g.typeStr(field.Type)
-			if field.Type.IsStruct {
-				typeStr = def.StructName + fmt.Sprint(i)
-				queue = append(queue, struct {
-					structName string
-					def        PlRowDef
-				}{
-					structName: typeStr,
-					def:        field.Type.Struct,
-				})
-			}
-			if field.Type.Array {
-				typeStr = "[]" + typeStr
-			}
-			def.Fields = append(def.Fields, GoStructField{
-				Key:  field.Name,
-				Type: typeStr,
-			})
-		}
-		defs = append(defs, def)
-
-		if len(queue) > 0 {
-			queue = queue[1:]
-		}
-	}
-
-	return defs
-}
-
-func (g GolangGenerator) writeStructDef(out *bytes.Buffer, defs []GoStructDef) map[string]string {
-
-	for len(queue) > 0 {
-		row := queue[0]
-
+func (g GolangGenerator) writeStructDef(defs []PlRowDef, out *bytes.Buffer) {
+	for _, row := range defs {
 		out.WriteString(fmt.Sprintf(
-			"type %s struct {\n",
-			upperGoIdentifier(row.Name),
+			"// Table: %s\ntype %s struct {\n",
+			row.TableName,
+			upperGoIdentifier(row.DefName),
 		))
 
-		for i, def := range row.Fields {
-			typeStr := g.typeStr(def.Type)
-			if def.Type.IsStruct {
-				typeStr = row.Name + fmt.Sprint(i)
-				tableToStruct[def.Type.Struct.Name] = typeStr
-				queue = append(queue, PlRowDef{
-					MethodName: row.MethodName,
-					Name:       typeStr,
-					Fields:     def.Type.Struct.Fields,
-				})
-			}
+		for _, def := range row.Fields {
+			typeStr := g.typeStr(defs, def.Type)
 			if def.Type.Array {
 				typeStr = "[]" + typeStr
 			}
-
 			out.WriteString(fmt.Sprintf(
 				"%s %s\n",
 				upperGoIdentifier(def.Name),
@@ -154,69 +87,57 @@ func (g GolangGenerator) writeStructDef(out *bytes.Buffer, defs []GoStructDef) m
 			))
 		}
 		out.WriteString("}\n\n")
-
-		if len(queue) > 0 {
-			queue = queue[1:]
-		}
 	}
-
-	return tableToStruct
 }
 
-func (g GolangGenerator) scanRowCode(rowDef PlRowDef, tableToStruct map[string]string, out *bytes.Buffer) {
-	for _, field := range rowDef.Fields {
+func (g GolangGenerator) scanRowCode(defs []PlRowDef, root PlRowDef, out *bytes.Buffer) {
+	for _, field := range root.Fields {
 		if field.Type.IsStruct {
 			continue
 		}
-		structName := tableToStruct[rowDef.Name]
-		if structName == "" {
-			structName = rowDef.Name
-		}
 		out.WriteString(fmt.Sprintf(
 			"&%s.%s,\n",
-			structName,
+			root.DefName,
 			upperGoIdentifier(field.Name),
 		))
 	}
-	for _, field := range rowDef.Fields {
+	for _, field := range root.Fields {
 		if !field.Type.IsStruct {
 			continue
 		}
-		g.scanRowCode(field.Type.Struct, tableToStruct, out)
+		g.scanRowCode(defs, defs[field.Type.Struct], out)
 	}
 }
 
-func (g GolangGenerator) queryFunc(rowDef PlRowDef, tableToStruct map[string]string, out *bytes.Buffer) {
+func (g GolangGenerator) queryFunc(defs []PlRowDef, root PlRowDef, out *bytes.Buffer) {
 	out.WriteString(fmt.Sprintf(
 		// TODO: add args, add single return
 		"func (q *Queries) %s(ctx context.Context, args any) ([]%s, error) {\n",
-		rowDef.MethodName,
-		rowDef.MethodName+"Row",
+		root.MethodName,
+		root.MethodName,
 	))
 
 	out.WriteString(fmt.Sprintf(
-		"rows, err := q.db.QueryContext(ctx, query%sRow, args)\n",
-		rowDef.MethodName,
+		"rows, err := q.db.QueryContext(ctx, query%s, args)\n",
+		root.MethodName,
 	))
 	out.WriteString("if err != nil { return nil, err }; defer rows.Close()\n\n")
 
-	out.WriteString(fmt.Sprintf("var %sRowMap map[string]%sRow\n", rowDef.MethodName, rowDef.MethodName))
-	for _, structName := range tableToStruct {
-		out.WriteString(fmt.Sprintf("var %sMap map[string]%s\n", structName, structName))
+	for _, row := range defs {
+		out.WriteString(fmt.Sprintf("var %sMap map[string]%s\n", row.DefName, row.DefName))
 	}
 
 	out.WriteString("\nfor rows.Next() {\n")
-	out.WriteString(fmt.Sprintf("var %sRow %sRow\n", rowDef.MethodName, rowDef.MethodName))
-	for _, structName := range tableToStruct {
-		out.WriteString(fmt.Sprintf("var %s %s\n", structName, structName))
+	for _, row := range defs {
+		out.WriteString(fmt.Sprintf("var %s %s\n", row.DefName, row.DefName))
 	}
 	out.WriteString("\nerr := rows.Scan(\n")
-	g.scanRowCode(rowDef, tableToStruct, out)
+	g.scanRowCode(defs, root, out)
 	out.WriteString(")\nif err != nil { return nil, err }\n\n")
 
 	out.WriteString("}\n\n")
-	out.WriteString(fmt.Sprintf("var items []%s\n", rowDef.MethodName))
-	out.WriteString(fmt.Sprintf("for _, i := range %sMap {\n", rowDef.MethodName))
+	out.WriteString(fmt.Sprintf("var items []%s\n", root.MethodName))
+	out.WriteString(fmt.Sprintf("for _, i := range %sMap {\n", root.MethodName))
 	out.WriteString("items = append(items, i)\n")
 	out.WriteString("}\n")
 	out.WriteString("if err := rows.Close(); err != nil { return nil, err }\n")
@@ -225,28 +146,36 @@ func (g GolangGenerator) queryFunc(rowDef PlRowDef, tableToStruct map[string]str
 }
 
 func (g GolangGenerator) Script(cfg sqlc.CodegenTask, script PlScript) []PlScriptOutput {
-	var sqlLocations []PlSqlQueryLocation
+	var sqlLocations []PlSqlLocation
 
 	out := bytes.NewBufferString("// Code generated by sqlc-joins-gen. DO NOT EDIT.\n\n")
 	out.WriteString(fmt.Sprintf("package %s\n\n", cfg.Gen.Go.Package))
-	for _, d := range script.RowDefs {
-		tableToStruct := g.structDef(out, d)
+	g.writeStructDef(script.RowDefs, out)
 
-		out.WriteString(fmt.Sprintf("\n\nconst query%s = `", d.Name))
-		sqlLocations = append(sqlLocations, PlSqlQueryLocation{
-			MethodName: d.MethodName,
+	for _, row := range script.RowDefs {
+		if !row.MethodRoot {
+			continue
+		}
+		out.WriteString(fmt.Sprintf("\n\nconst query%s = `", row.DefName))
+		sqlLocations = append(sqlLocations, PlSqlLocation{
+			MethodName: row.MethodName,
 			Location:   out.Len(),
 		})
 		out.WriteString("`\n\n")
+	}
 
-		g.queryFunc(d, tableToStruct, out)
+	for _, row := range script.RowDefs {
+		if !row.MethodRoot {
+			continue
+		}
+		g.queryFunc(script.RowDefs, row, out)
 	}
 
 	return []PlScriptOutput{
 		{
-			Path:         path.Join(cfg.CfgDir, cfg.Gen.Go.Out, "query.joins.go"),
-			Contents:     out.Bytes(),
-			SqlLocations: sqlLocations,
+			Path:              path.Join(cfg.CfgDir, cfg.Gen.Go.Out, "query.joins.go"),
+			Contents:          out.Bytes(),
+			SqlEmbedLocations: sqlLocations,
 		},
 	}
 }

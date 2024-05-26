@@ -213,55 +213,62 @@ func TestGetRowDef(t *testing.T) {
 	schemas := schema.TESTING_SCHEMAS
 	testCases := []struct {
 		schema   schema.Schema
-		query    querycfg.Query
-		table    int
-		expected PlRowDef
+		method   querycfg.Method
+		expected []PlRowDef
 	}{
 		{
 			schema: schemas[0],
-			// 'Book' table
-			table: 1,
-			query: querycfg.Query{
-				Columns: map[string]bool{
-					"authorId": true,
-				},
-				With: map[string]querycfg.Query{
-					"Author": {
-						Columns: map[string]bool{
-							"name": false,
+			method: querycfg.Method{
+				Table: "Book",
+				Query: querycfg.Query{
+					Columns: map[string]bool{
+						"authorId": true,
+					},
+					With: map[string]querycfg.Query{
+						"Author": {
+							Columns: map[string]bool{
+								"name": false,
+							},
 						},
 					},
 				},
 			},
-			expected: PlRowDef{
-				Name: "Book",
-				Fields: []PlFieldDef{
-					{
-						Name: "authorId",
-						Type: PlType{
-							Primitive: INT,
+			expected: []PlRowDef{
+				{
+					DefName:    "Book",
+					TableName:  "Book",
+					MethodRoot: true,
+					Fields: []PlFieldDef{
+						{
+							Name: "authorId",
+							Type: PlType{
+								Primitive: INT,
+							},
+						},
+						{
+							Name: "id",
+							Type: PlType{
+								Primitive: INT,
+							},
+						},
+						{
+							Name: "Author",
+							Type: PlType{
+								IsStruct: true,
+								Struct:   1,
+							},
 						},
 					},
-					{
-						Name: "id",
-						Type: PlType{
-							Primitive: INT,
-						},
-					},
-					{
-						Name: "Author",
-						Type: PlType{
-							IsStruct: true,
-							Struct: PlRowDef{
-								Name: "Author",
-								Fields: []PlFieldDef{
-									{
-										Name: "id",
-										Type: PlType{
-											Primitive: INT,
-										},
-									},
-								},
+				},
+				{
+					DefName:    "Author",
+					TableName:  "Author",
+					MethodRoot: false,
+					Fields: []PlFieldDef{
+						{
+							Name: "id",
+							Type: PlType{
+								Primitive: INT,
 							},
 						},
 					},
@@ -270,55 +277,66 @@ func TestGetRowDef(t *testing.T) {
 		},
 		{
 			schema: schemas[0],
-			// 'Author' table
-			table: 0,
-			query: querycfg.Query{
-				With: map[string]querycfg.Query{
-					"Book": {},
+			method: querycfg.Method{
+				Table: "Author",
+				Name:  "some method",
+				Query: querycfg.Query{
+					With: map[string]querycfg.Query{
+						"Book": {},
+					},
 				},
 			},
-			expected: PlRowDef{
-				Name: "Author",
-				Fields: []PlFieldDef{
-					{
-						Name: "id",
-						Type: PlType{
-							Primitive: INT,
+			expected: []PlRowDef{
+				{
+					DefName:    "Author",
+					TableName:  "Author",
+					MethodRoot: true,
+					MethodName: "some method",
+					Fields: []PlFieldDef{
+						{
+							Name: "id",
+							Type: PlType{
+								Primitive: INT,
+							},
+						},
+						{
+							Name: "name",
+							Type: PlType{
+								Primitive: STRING,
+							},
+						},
+						{
+							Name: "Book",
+							Type: PlType{
+								Array:    true,
+								IsStruct: true,
+								Struct:   1,
+							},
 						},
 					},
-					{
-						Name: "name",
-						Type: PlType{
-							Primitive: STRING,
+				},
+				{
+					DefName:    "Book",
+					TableName:  "Book",
+					MethodRoot: false,
+					MethodName: "some method",
+					Fields: []PlFieldDef{
+						{
+							Name: "id",
+							Type: PlType{
+								Primitive: INT,
+							},
 						},
-					},
-					{
-						Name: "Book",
-						Type: PlType{
-							Array:    true,
-							IsStruct: true,
-							Struct: PlRowDef{
-								Name: "Book",
-								Fields: []PlFieldDef{
-									{
-										Name: "id",
-										Type: PlType{
-											Primitive: INT,
-										},
-									},
-									{
-										Name: "authorId",
-										Type: PlType{
-											Primitive: INT,
-										},
-									},
-									{
-										Name: "name",
-										Type: PlType{
-											Primitive: STRING,
-										},
-									},
-								},
+						{
+							Name: "authorId",
+							Type: PlType{
+								Primitive: INT,
+							},
+						},
+						{
+							Name: "name",
+							Type: PlType{
+								Primitive: STRING,
 							},
 						},
 					},
@@ -329,7 +347,8 @@ func TestGetRowDef(t *testing.T) {
 
 	for _, test := range testCases {
 		generator := GenManager{Schema: test.schema}
-		result := generator.getRowDef("", test.query, test.table)
+		var result []PlRowDef
+		generator.getRowDefs(test.method, &result)
 
 		diff := utils.DiffUnordered(test.expected, result)
 

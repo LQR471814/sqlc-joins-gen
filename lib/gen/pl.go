@@ -35,7 +35,7 @@ func SqlColumnTypeToPlType(t schema.ColumnType) PlPrimitive {
 type PlType struct {
 	Primitive PlPrimitive
 	IsStruct  bool
-	Struct    PlRowDef
+	Struct    int
 	Nullable  bool
 	Array     bool
 }
@@ -48,9 +48,13 @@ type PlFieldDef struct {
 
 // a struct, object typedef, or class
 type PlRowDef struct {
+	// just for metadata usage
+	TableName  string
 	MethodName string
-	Name       string
-	Fields     []PlFieldDef
+	MethodRoot bool
+
+	DefName string
+	Fields  []PlFieldDef
 }
 
 // the order of fields and definitions should be
@@ -59,15 +63,15 @@ type PlScript struct {
 	RowDefs []PlRowDef
 }
 
-type PlSqlQueryLocation struct {
+type PlSqlLocation struct {
 	MethodName string
 	Location   int
 }
 
 type PlScriptOutput struct {
-	Path         string
-	Contents     []byte
-	SqlLocations []PlSqlQueryLocation
+	Path              string
+	Contents          []byte
+	SqlEmbedLocations []PlSqlLocation
 }
 
 // note: PL stands for "programming language"

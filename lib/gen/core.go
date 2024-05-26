@@ -75,66 +75,100 @@ func (m GenManager) getColumns(query querycfg.Query, table schema.Table) []schem
 	return columns
 }
 
-func (m GenManager) getRowDef(methodName string, query querycfg.Query, tableIdx int) PlRowDef {
-	table := m.Schema.Tables[tableIdx]
-	def := PlRowDef{
-		Name:       table.Name,
-		MethodName: methodName,
+func (m GenManager) getRowDefs(method querycfg.Method, out *[]PlRowDef) {
+	rootTableIdx := m.Schema.MustFindTableIdx(method.Table)
+	queue := []struct {
+		rowDefName string
+		tableIdx   int
+		query      querycfg.Query
+	}{
+		{
+			rowDefName: method.Name,
+			tableIdx:   rootTableIdx,
+			query:      method.Query,
+		},
 	}
 
-	columns := m.getColumns(query, table)
-	for _, col := range columns {
-		def.Fields = append(def.Fields, PlFieldDef{
-			Name: col.Name,
-			Type: PlType{
-				Primitive: SqlColumnTypeToPlType(col.Type),
-				Nullable:  col.Nullable,
-			},
-		})
-	}
+	for len(queue) > 0 {
+		current := queue[0]
 
-	for childTableName, childClause := range query.With {
-		childTableIdx := m.Schema.MustFindTableIdx(childTableName)
-		childTable := m.Schema.Tables[childTableIdx]
+		table := m.Schema.Tables[current.tableIdx]
+		def := PlRowDef{
+			MethodRoot: current.tableIdx == rootTableIdx,
+			MethodName: method.Name,
+			TableName:  table.Name,
+			DefName:    current.rowDefName,
+		}
 
-		// If the columns of a foreign key constraint are a subset of some unique constraint
-		// present on the target table, the target table must only have single row attached
-		// to any given current table.
-		// > no more no less
-		// The target table must have no less than a single row because inner join forces
-		// matches on fields.
-		// Meaning if there is a joined row, both the left and right must exist.
+		columns := m.getColumns(current.query, table)
+		for _, col := range columns {
+			def.Fields = append(def.Fields, PlFieldDef{
+				Name: col.Name,
+				Type: PlType{
+					Primitive: SqlColumnTypeToPlType(col.Type),
+					Nullable:  col.Nullable,
+				},
+			})
+		}
 
-		// If the target table doesn't have any foreign keys pointing to the current table,
-		// this must mean the current table must have a foreign key constraint that points
-		// to the target table.
-		// This means there must only exist one target table joined to any given current table.
+		i := 0
+		for childTableName, childQuery := range current.query.With {
+			childTableIdx := m.Schema.MustFindTableIdx(childTableName)
+			childTable := m.Schema.Tables[childTableIdx]
 
-		isUniqueFkey := false
-		hasFkeyToCurrent := false
-		for _, fkey := range childTable.ForeignKeys {
-			if fkey.TargetTable != tableIdx {
-				continue
+			// If the columns of a foreign key constraint are a subset of some unique constraint
+			// present on the target table, the target table must only have single row attached
+			// to any given current table.
+			// > no more no less
+			// The target table must have no less than a single row because inner join forces
+			// matches on fields.
+			// Meaning if there is a joined row, both the left and right must exist.
+
+			// If the target table doesn't have any foreign keys pointing to the current table,
+			// this must mean the current table must have a foreign key constraint that points
+			// to the target table.
+			// This means there must only exist one target table joined to any given current table.
+
+			isUniqueFkey := false
+			hasFkeyToCurrent := false
+			for _, fkey := range childTable.ForeignKeys {
+				if fkey.TargetTable != current.tableIdx {
+					continue
+				}
+				hasFkeyToCurrent = true
+				isUniqueFkey = m.isUniqueFkey(childTable, fkey)
+				break
 			}
-			hasFkeyToCurrent = true
-			isUniqueFkey = m.isUniqueFkey(childTable, fkey)
-			break
-		}
-		if !hasFkeyToCurrent {
-			isUniqueFkey = true
+			if !hasFkeyToCurrent {
+				isUniqueFkey = true
+			}
+
+			queue = append(queue, struct {
+				rowDefName string
+				tableIdx   int
+				query      querycfg.Query
+			}{
+				rowDefName: current.rowDefName + childTableName,
+				tableIdx:   childTableIdx,
+				query:      childQuery,
+			})
+
+			def.Fields = append(def.Fields, PlFieldDef{
+				Name: childTableName,
+				Type: PlType{
+					IsStruct: true,
+					Struct:   len(*out) + 1,
+					Array:    !isUniqueFkey,
+				},
+			})
+			i++
 		}
 
-		def.Fields = append(def.Fields, PlFieldDef{
-			Name: childTableName,
-			Type: PlType{
-				IsStruct: true,
-				Struct:   m.getRowDef(methodName, childClause, childTableIdx),
-				Array:    !isUniqueFkey,
-			},
-		})
+		*out = append(*out, def)
+		if len(queue) > 0 {
+			queue = queue[1:]
+		}
 	}
-
-	return def
 }
 
 func (m GenManager) getSelectFields(query querycfg.Query, table schema.Table, out *[]SqlSelectField) {
@@ -275,20 +309,14 @@ func (m GenManager) Generate(
 ) error {
 	script := PlScript{}
 	for _, method := range methods {
-		rowDef := m.getRowDef(
-			method.Name,
-			method.Query,
-			m.Schema.MustFindTableIdx(method.Table),
-		)
-		rowDef.Name = method.Name + "Row"
-		script.RowDefs = append(script.RowDefs, rowDef)
+		m.getRowDefs(method, &script.RowDefs)
 	}
 
 	outputs := plgen.Script(task, script)
 	for _, out := range outputs {
 		interpolated := ""
 		cursor := 0
-		for _, location := range out.SqlLocations {
+		for _, location := range out.SqlEmbedLocations {
 			interpolated += string(out.Contents[cursor:location.Location])
 
 			var method querycfg.Method
