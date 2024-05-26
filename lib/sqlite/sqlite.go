@@ -21,7 +21,7 @@ func removeCommentLines(block string) string {
 }
 
 func parseSqlScript(script string) ([]any, error) {
-	statements := []any{}
+	var statements []any
 
 	lines := strings.Split(script, ";")
 	for _, line := range lines {
@@ -50,7 +50,7 @@ func ParseSchema(sqliteScript []byte) (schema.Schema, error) {
 		return schema.Schema{}, err
 	}
 
-	tables := []schema.Table{}
+	var tables []schema.Table
 
 	for _, s := range statements {
 		switch s.(type) {
@@ -62,6 +62,7 @@ func ParseSchema(sqliteScript []byte) (schema.Schema, error) {
 		stmt := s.(sqlparse.CreateTableStmt)
 
 		var pkey []int
+		var unique [][]int
 
 		columns := []schema.Column{}
 		for i, col := range stmt.Columns {
@@ -70,14 +71,37 @@ func ParseSchema(sqliteScript []byte) (schema.Schema, error) {
 				Type:     col.Type,
 				Nullable: col.Null,
 			})
+
 			if col.PrimaryKey {
 				pkey = []int{i}
 			}
+			if col.Unique {
+				unique = append(unique, []int{i})
+			}
 		}
 
-		fkeys := []schema.ForeignKey{}
+		var fkeys []schema.ForeignKey
 		for _, intf := range stmt.Constraints {
 			switch cnstr := intf.(type) {
+			case sqlparse.TableUnique:
+				var fields []int
+				for _, indexed := range cnstr.IndexedColumns {
+					idx := -1
+					for i, col := range stmt.Columns {
+						if col.Name == indexed.Column {
+							idx = i
+							break
+						}
+					}
+					if idx < 0 {
+						return schema.Schema{}, fmt.Errorf(
+							"undefined source column \"%s\" of foreign key in \"%s\"",
+							indexed.Column, stmt.Table,
+						)
+					}
+					fields = append(fields, idx)
+				}
+				unique = append(unique, fields)
 			case sqlparse.TableForeignKey:
 				targetTableIdx := -1
 				for i, table := range tables {
@@ -158,10 +182,11 @@ func ParseSchema(sqliteScript []byte) (schema.Schema, error) {
 		}
 
 		tables = append(tables, schema.Table{
-			Name:        stmt.Table,
-			Columns:     columns,
-			PrimaryKey:  pkey,
-			ForeignKeys: fkeys,
+			Name:         stmt.Table,
+			Columns:      columns,
+			PrimaryKey:   pkey,
+			ForeignKeys:  fkeys,
+			UniqueFields: unique,
 		})
 	}
 

@@ -2,9 +2,8 @@ package sqlite
 
 import (
 	"sqlc-joins-gen/lib/schema"
+	"sqlc-joins-gen/lib/utils"
 	"testing"
-
-	"github.com/google/go-cmp/cmp"
 )
 
 type TestSchema struct {
@@ -40,11 +39,18 @@ create table BookAuthorRelevance (
 create table BookAuthorRelevanceRating (
 	authorId integer not null,
 	bookId integer not null,
-	ratedBy integer not null,
+	ratedBy integer,
 	rating real,
 	primary key (authorId, bookId, ratedBy),
 	foreign key (authorId, bookId) references BookAuthorRelevance(authorId, bookId),
 	foreign key (ratedBy) references Author(id)
+);
+
+create table BookMetadata (
+	bookId integer not null primary key,
+	pages integer not null,
+	rating real,
+	foreign key (bookId) references Book(id)
 );
 `),
 		Schema: schema.TESTING_SCHEMAS[0],
@@ -58,7 +64,7 @@ func TestParseSchema(t *testing.T) {
 			t.Fatal("failed to construct schema:", err)
 		}
 
-		diff := cmp.Diff(test.Schema, result)
+		diff := utils.DiffUnordered(test.Schema, result)
 		if diff != "" {
 			t.Fatal(
 				"unexpected differences in expected schema parse:",

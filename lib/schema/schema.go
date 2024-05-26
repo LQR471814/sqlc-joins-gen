@@ -29,10 +29,11 @@ type ForeignKey struct {
 }
 
 type Table struct {
-	Name        string
-	Columns     []Column
-	PrimaryKey  []int
-	ForeignKeys []ForeignKey
+	Name         string
+	Columns      []Column
+	PrimaryKey   []int
+	UniqueFields [][]int
+	ForeignKeys  []ForeignKey
 }
 
 func (t Table) FindColumnIdx(name string) int {
@@ -80,4 +81,3 @@ func (s Schema) MustFindTableIdx(name string) int {
 func (s Schema) MustFindTable(name string) Table {
 	return s.Tables[s.MustFindTableIdx(name)]
 }
-

@@ -2,32 +2,37 @@ package sqlc
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
 	Sql []Target `yaml:"sql"`
 }
 
+type GenCfg struct {
+	Go struct {
+		Package string `yaml:"package"`
+		Out     string `yaml:"out"`
+	} `yaml:"go"`
+}
+
 type Target struct {
 	Engine  string `yaml:"engine"`
 	Queries string `yaml:"queries"`
 	Schema  string `yaml:"schema"`
-	Gen     struct {
-		Go struct {
-			Package string `yaml:"package"`
-			Out     string `yaml:"out"`
-		} `yaml:"go"`
-	} `yaml:"gen"`
+	Gen     GenCfg `yaml:"gen"`
 }
 
 type CodegenTask struct {
-	Schema      []byte
-	Joins       []byte
-	PackageName string
-	PackagePath string
+	CfgDir string
+	Schema []byte
+	Joins  []byte
+	Gen    GenCfg
 }
 
 func replaceExt(filename, ext string) string {
@@ -38,8 +43,44 @@ func replaceExt(filename, ext string) string {
 	return filename[:lastDotIdx] + "." + ext
 }
 
-func LoadConfig(cfgDir string, cfg Config) ([]CodegenTask, error) {
-	targets := []Target{}
+func readSqlcConfig(dir string) (*os.File, error) {
+	f, err := os.Open(path.Join(dir, "sqlc.yaml"))
+	if err == nil {
+		return f, nil
+	}
+	if !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	f, err = os.Open(path.Join(dir, "sqlc.yml"))
+	if err == nil {
+		return f, nil
+	}
+	if !os.IsNotExist(err) {
+		return nil, err
+	}
+
+	return nil, fmt.Errorf(
+		"could not find sqlc.yaml or sqlc.yml in '%s'",
+		dir,
+	)
+}
+
+func LoadConfig(dir string) ([]CodegenTask, error) {
+	f, err := readSqlcConfig(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	cfg := Config{}
+	decoder := yaml.NewDecoder(f)
+	err = decoder.Decode(&cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	var targets []Target
 	for _, target := range cfg.Sql {
 		if target.Engine == "sqlite" {
 			targets = append(targets, target)
@@ -49,15 +90,15 @@ func LoadConfig(cfgDir string, cfg Config) ([]CodegenTask, error) {
 		return nil, errors.New("no sqlc targets are of the sqlite engine")
 	}
 
-	tasks := []CodegenTask{}
+	var tasks []CodegenTask
 	for _, target := range targets {
-		schemaBuff, err := os.ReadFile(path.Join(cfgDir, target.Schema))
+		schemaBuff, err := os.ReadFile(path.Join(dir, target.Schema))
 		if err != nil {
 			return nil, err
 		}
 
 		joinsPath := path.Join(
-			cfgDir,
+			dir,
 			path.Dir(target.Queries),
 			replaceExt(path.Base(target.Queries), "joins.json5"),
 		)
@@ -67,10 +108,10 @@ func LoadConfig(cfgDir string, cfg Config) ([]CodegenTask, error) {
 		}
 
 		tasks = append(tasks, CodegenTask{
-			Schema:      schemaBuff,
-			Joins:       joinsBuff,
-			PackageName: target.Gen.Go.Package,
-			PackagePath: target.Gen.Go.Out,
+			CfgDir: dir,
+			Schema: schemaBuff,
+			Joins:  joinsBuff,
+			Gen:    target.Gen,
 		})
 	}
 

@@ -10,6 +10,7 @@ create table PSCourse (
 create table PSUserCourse (
     userEmail text not null,
     courseName text not null,
+    primary key (userEmail, courseName),
     foreign key (userEmail) references User(email)
         on update cascade
         on delete cascade,

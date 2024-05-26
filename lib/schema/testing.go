@@ -18,7 +18,7 @@ var TESTING_SCHEMAS = []Schema{
 					},
 				},
 				PrimaryKey:  []int{0},
-				ForeignKeys: []ForeignKey{},
+				ForeignKeys: nil,
 			},
 			{
 				Name: "Book",
@@ -109,7 +109,7 @@ var TESTING_SCHEMAS = []Schema{
 					{
 						Name:     "ratedBy",
 						Type:     INT,
-						Nullable: false,
+						Nullable: true,
 					},
 					{
 						Name:     "rating",
@@ -137,6 +137,38 @@ var TESTING_SCHEMAS = []Schema{
 						On: []ForeignColumn{
 							{
 								SourceColumn: 2,
+								TargetColumn: 0,
+							},
+						},
+					},
+				},
+			},
+			{
+				Name: "BookMetadata",
+				Columns: []Column{
+					{
+						Name:     "bookId",
+						Type:     INT,
+						Nullable: false,
+					},
+					{
+						Name:     "pages",
+						Type:     INT,
+						Nullable: false,
+					},
+					{
+						Name:     "rating",
+						Type:     REAL,
+						Nullable: true,
+					},
+				},
+				PrimaryKey: []int{0},
+				ForeignKeys: []ForeignKey{
+					{
+						TargetTable: 1,
+						On: []ForeignColumn{
+							{
+								SourceColumn: 0,
 								TargetColumn: 0,
 							},
 						},

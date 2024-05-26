@@ -1,4 +1,4 @@
-package utils
+package gen
 
 import "testing"
 
@@ -17,11 +17,11 @@ func TestToGoIdentifier(t *testing.T) {
 		},
 		{
 			test:     "camelCase",
-			expected: "Camelcase",
+			expected: "CamelCase",
 		},
 		{
 			test:     "PascalCase",
-			expected: "Pascalcase",
+			expected: "PascalCase",
 		},
 		{
 			test:     "22-numbers-in-front",
@@ -45,7 +45,7 @@ func TestToGoIdentifier(t *testing.T) {
 				}
 				panic(err)
 			}()
-			return ToUpperGoIdentifier(c.test)
+			return upperGoIdentifier(c.test)
 		}()
 		if result != c.expected && c.expected != "<PANIC>" {
 			t.Fatalf("expected '%s' but got '%s'", c.expected, result)

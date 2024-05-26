@@ -29,7 +29,7 @@ inner join MoodleAssignment on MoodleCourse.id = MoodleAssignment.courseId
 where email = ?
 `
 
-type GetUserDataRow struct {
+type GetUserDataRow_Old struct {
 	Email              string
 	Gpa                float64
 	Useremail          string
@@ -67,15 +67,15 @@ type GetUserDataRow struct {
 	Category_2         sql.NullString
 }
 
-func (q *Queries) GetUserData(ctx context.Context, email string) ([]GetUserDataRow, error) {
+func (q *Queries) GetUserData(ctx context.Context, email string) ([]GetUserDataRow_Old, error) {
 	rows, err := q.db.QueryContext(ctx, getUserData, email)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetUserDataRow
+	var items []GetUserDataRow_Old
 	for rows.Next() {
-		var i GetUserDataRow
+		var i GetUserDataRow_Old
 		if err := rows.Scan(
 			&i.Email,
 			&i.Gpa,
