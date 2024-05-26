@@ -39,8 +39,8 @@ func upperGoIdentifier(name string) string {
 type GolangGenerator struct{}
 
 func (g GolangGenerator) typeStr(defs []PlRowDef, t PlType) string {
-	if t.IsStruct {
-		return defs[t.Struct].DefName
+	if t.IsRowDef {
+		return defs[t.RowDef].DefName
 	}
 	switch t.Primitive {
 	case INT:
@@ -92,7 +92,7 @@ func (g GolangGenerator) writeStructDef(defs []PlRowDef, out *bytes.Buffer) {
 
 func (g GolangGenerator) scanRowCode(defs []PlRowDef, root PlRowDef, out *bytes.Buffer) {
 	for _, field := range root.Fields {
-		if field.Type.IsStruct {
+		if field.Type.IsRowDef {
 			continue
 		}
 		out.WriteString(fmt.Sprintf(
@@ -102,10 +102,10 @@ func (g GolangGenerator) scanRowCode(defs []PlRowDef, root PlRowDef, out *bytes.
 		))
 	}
 	for _, field := range root.Fields {
-		if !field.Type.IsStruct {
+		if !field.Type.IsRowDef {
 			continue
 		}
-		g.scanRowCode(defs, defs[field.Type.Struct], out)
+		g.scanRowCode(defs, defs[field.Type.RowDef], out)
 	}
 }
 

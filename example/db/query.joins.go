@@ -2,6 +2,11 @@
 
 package db
 
+import (
+	"context"
+	"database/sql"
+)
+
 // Table: User
 type GetUserData struct {
 	Gpa              float64
@@ -14,15 +19,23 @@ type GetUserData struct {
 type GetUserDataPSUserCourse struct {
 	CourseName       string
 	UserEmail        string
-	PSUserAssignment []GetUserDataMoodleUserCourse
 	PSUserMeeting    []GetUserDataMoodleUserCourse
+	PSUserAssignment []GetUserDataMoodleUserCourse
 }
 
 // Table: MoodleUserCourse
 type GetUserDataMoodleUserCourse struct {
 	CourseId     string
 	UserEmail    string
-	MoodleCourse GetUserDataPSUserCoursePSUserAssignment
+	MoodleCourse GetUserDataPSUserCoursePSUserMeeting
+}
+
+// Table: PSUserMeeting
+type GetUserDataPSUserCoursePSUserMeeting struct {
+	UserEmail  string
+	CourseName string
+	StartTime  int
+	EndTime    int
 }
 
 // Table: PSUserAssignment
@@ -34,15 +47,7 @@ type GetUserDataPSUserCoursePSUserAssignment struct {
 	Collected      int
 	Scored         sql.NullFloat64
 	Total          sql.NullFloat64
-	PSAssignment   GetUserDataPSUserCoursePSUserMeeting
-}
-
-// Table: PSUserMeeting
-type GetUserDataPSUserCoursePSUserMeeting struct {
-	UserEmail  string
-	CourseName string
-	StartTime  int
-	EndTime    int
+	PSAssignment   GetUserDataMoodleUserCourseMoodleCourse
 }
 
 // Table: MoodleCourse
@@ -158,8 +163,8 @@ func (q *Queries) GetUserData(ctx context.Context, args any) ([]GetUserData, err
 	var GetUserDataMap map[string]GetUserData
 	var GetUserDataPSUserCourseMap map[string]GetUserDataPSUserCourse
 	var GetUserDataMoodleUserCourseMap map[string]GetUserDataMoodleUserCourse
-	var GetUserDataPSUserCoursePSUserAssignmentMap map[string]GetUserDataPSUserCoursePSUserAssignment
 	var GetUserDataPSUserCoursePSUserMeetingMap map[string]GetUserDataPSUserCoursePSUserMeeting
+	var GetUserDataPSUserCoursePSUserAssignmentMap map[string]GetUserDataPSUserCoursePSUserAssignment
 	var GetUserDataMoodleUserCourseMoodleCourseMap map[string]GetUserDataMoodleUserCourseMoodleCourse
 	var GetUserDataPSUserCoursePSUserAssignmentPSAssignmentMap map[string]GetUserDataPSUserCoursePSUserAssignmentPSAssignment
 	var GetUserDataMoodleUserCourseMoodleCourseMoodlePageMap map[string]GetUserDataMoodleUserCourseMoodleCourseMoodlePage
@@ -169,8 +174,8 @@ func (q *Queries) GetUserData(ctx context.Context, args any) ([]GetUserData, err
 		var GetUserData GetUserData
 		var GetUserDataPSUserCourse GetUserDataPSUserCourse
 		var GetUserDataMoodleUserCourse GetUserDataMoodleUserCourse
-		var GetUserDataPSUserCoursePSUserAssignment GetUserDataPSUserCoursePSUserAssignment
 		var GetUserDataPSUserCoursePSUserMeeting GetUserDataPSUserCoursePSUserMeeting
+		var GetUserDataPSUserCoursePSUserAssignment GetUserDataPSUserCoursePSUserAssignment
 		var GetUserDataMoodleUserCourseMoodleCourse GetUserDataMoodleUserCourseMoodleCourse
 		var GetUserDataPSUserCoursePSUserAssignmentPSAssignment GetUserDataPSUserCoursePSUserAssignmentPSAssignment
 		var GetUserDataMoodleUserCourseMoodleCourseMoodlePage GetUserDataMoodleUserCourseMoodleCourseMoodlePage
@@ -183,26 +188,12 @@ func (q *Queries) GetUserData(ctx context.Context, args any) ([]GetUserData, err
 			&GetUserDataPSUserCourse.UserEmail,
 			&GetUserDataMoodleUserCourse.CourseId,
 			&GetUserDataMoodleUserCourse.UserEmail,
-			&GetUserDataPSUserCoursePSUserAssignment.UserEmail,
-			&GetUserDataPSUserCoursePSUserAssignment.AssignmentName,
-			&GetUserDataPSUserCoursePSUserAssignment.CourseName,
-			&GetUserDataPSUserCoursePSUserAssignment.Missing,
-			&GetUserDataPSUserCoursePSUserAssignment.Collected,
-			&GetUserDataPSUserCoursePSUserAssignment.Scored,
-			&GetUserDataPSUserCoursePSUserAssignment.Total,
 			&GetUserDataPSUserCoursePSUserMeeting.UserEmail,
 			&GetUserDataPSUserCoursePSUserMeeting.CourseName,
 			&GetUserDataPSUserCoursePSUserMeeting.StartTime,
 			&GetUserDataPSUserCoursePSUserMeeting.EndTime,
 			&GetUserDataMoodleUserCourse.CourseId,
 			&GetUserDataMoodleUserCourse.UserEmail,
-			&GetUserDataPSUserCoursePSUserAssignment.UserEmail,
-			&GetUserDataPSUserCoursePSUserAssignment.AssignmentName,
-			&GetUserDataPSUserCoursePSUserAssignment.CourseName,
-			&GetUserDataPSUserCoursePSUserAssignment.Missing,
-			&GetUserDataPSUserCoursePSUserAssignment.Collected,
-			&GetUserDataPSUserCoursePSUserAssignment.Scored,
-			&GetUserDataPSUserCoursePSUserAssignment.Total,
 			&GetUserDataPSUserCoursePSUserMeeting.UserEmail,
 			&GetUserDataPSUserCoursePSUserMeeting.CourseName,
 			&GetUserDataPSUserCoursePSUserMeeting.StartTime,
@@ -211,26 +202,12 @@ func (q *Queries) GetUserData(ctx context.Context, args any) ([]GetUserData, err
 			&GetUserDataPSUserCourse.UserEmail,
 			&GetUserDataMoodleUserCourse.CourseId,
 			&GetUserDataMoodleUserCourse.UserEmail,
-			&GetUserDataPSUserCoursePSUserAssignment.UserEmail,
-			&GetUserDataPSUserCoursePSUserAssignment.AssignmentName,
-			&GetUserDataPSUserCoursePSUserAssignment.CourseName,
-			&GetUserDataPSUserCoursePSUserAssignment.Missing,
-			&GetUserDataPSUserCoursePSUserAssignment.Collected,
-			&GetUserDataPSUserCoursePSUserAssignment.Scored,
-			&GetUserDataPSUserCoursePSUserAssignment.Total,
 			&GetUserDataPSUserCoursePSUserMeeting.UserEmail,
 			&GetUserDataPSUserCoursePSUserMeeting.CourseName,
 			&GetUserDataPSUserCoursePSUserMeeting.StartTime,
 			&GetUserDataPSUserCoursePSUserMeeting.EndTime,
 			&GetUserDataMoodleUserCourse.CourseId,
 			&GetUserDataMoodleUserCourse.UserEmail,
-			&GetUserDataPSUserCoursePSUserAssignment.UserEmail,
-			&GetUserDataPSUserCoursePSUserAssignment.AssignmentName,
-			&GetUserDataPSUserCoursePSUserAssignment.CourseName,
-			&GetUserDataPSUserCoursePSUserAssignment.Missing,
-			&GetUserDataPSUserCoursePSUserAssignment.Collected,
-			&GetUserDataPSUserCoursePSUserAssignment.Scored,
-			&GetUserDataPSUserCoursePSUserAssignment.Total,
 			&GetUserDataPSUserCoursePSUserMeeting.UserEmail,
 			&GetUserDataPSUserCoursePSUserMeeting.CourseName,
 			&GetUserDataPSUserCoursePSUserMeeting.StartTime,

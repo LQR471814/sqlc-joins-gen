@@ -34,8 +34,8 @@ func SqlColumnTypeToPlType(t schema.ColumnType) PlPrimitive {
 // the type part of a field definition
 type PlType struct {
 	Primitive PlPrimitive
-	IsStruct  bool
-	Struct    int
+	IsRowDef  bool
+	RowDef    int
 	Nullable  bool
 	Array     bool
 }
@@ -57,10 +57,17 @@ type PlRowDef struct {
 	Fields  []PlFieldDef
 }
 
-// the order of fields and definitions should be
-// the same as the order of SqlSelectField's
+// refers to a RowDef and field in it
+type PlScanEntry struct {
+	RowDef int
+	Field  int
+}
+
+// represents a single file in the target language
 type PlScript struct {
-	RowDefs []PlRowDef
+	RowDefs   []PlRowDef
+	// defines the order of columns when scanning rows in
+	ScanOrder []PlScanEntry
 }
 
 type PlSqlLocation struct {

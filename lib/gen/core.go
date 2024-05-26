@@ -156,8 +156,8 @@ func (m GenManager) getRowDefs(method querycfg.Method, out *[]PlRowDef) {
 			def.Fields = append(def.Fields, PlFieldDef{
 				Name: childTableName,
 				Type: PlType{
-					IsStruct: true,
-					Struct:   len(*out) + 1,
+					IsRowDef: true,
+					RowDef:   len(*out) + 1,
 					Array:    !isUniqueFkey,
 				},
 			})

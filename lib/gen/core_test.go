@@ -254,8 +254,8 @@ func TestGetRowDef(t *testing.T) {
 						{
 							Name: "Author",
 							Type: PlType{
-								IsStruct: true,
-								Struct:   1,
+								IsRowDef: true,
+								RowDef:   1,
 							},
 						},
 					},
@@ -309,8 +309,8 @@ func TestGetRowDef(t *testing.T) {
 							Name: "Book",
 							Type: PlType{
 								Array:    true,
-								IsStruct: true,
-								Struct:   1,
+								IsRowDef: true,
+								RowDef:   1,
 							},
 						},
 					},
