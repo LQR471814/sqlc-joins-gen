@@ -220,6 +220,7 @@ func TestGetRowDef(t *testing.T) {
 			schema: schemas[0],
 			method: querycfg.Method{
 				Table: "Book",
+				Name:  "getBooksAndAuthor",
 				Query: querycfg.Query{
 					Columns: map[string]bool{
 						"authorId": true,
@@ -235,18 +236,19 @@ func TestGetRowDef(t *testing.T) {
 			},
 			expected: []PlRowDef{
 				{
-					DefName:    "Book",
-					TableName:  "Book",
-					MethodRoot: true,
+					DefName:   "getBooksAndAuthor",
+					TableName: "Book",
 					Fields: []PlFieldDef{
 						{
-							Name: "authorId",
+							Name:           "authorId",
+							TableFieldName: "authorId",
 							Type: PlType{
 								Primitive: INT,
 							},
 						},
 						{
-							Name: "id",
+							Name:           "id",
+							TableFieldName: "id",
 							Type: PlType{
 								Primitive: INT,
 							},
@@ -261,12 +263,12 @@ func TestGetRowDef(t *testing.T) {
 					},
 				},
 				{
-					DefName:    "Author",
-					TableName:  "Author",
-					MethodRoot: false,
+					DefName:   "getBooksAndAuthor0",
+					TableName: "Author",
 					Fields: []PlFieldDef{
 						{
-							Name: "id",
+							Name:           "id",
+							TableFieldName: "id",
 							Type: PlType{
 								Primitive: INT,
 							},
@@ -279,7 +281,7 @@ func TestGetRowDef(t *testing.T) {
 			schema: schemas[0],
 			method: querycfg.Method{
 				Table: "Author",
-				Name:  "some method",
+				Name:  "getAuthorAndBooks",
 				Query: querycfg.Query{
 					With: map[string]querycfg.Query{
 						"Book": {},
@@ -288,19 +290,19 @@ func TestGetRowDef(t *testing.T) {
 			},
 			expected: []PlRowDef{
 				{
-					DefName:    "Author",
-					TableName:  "Author",
-					MethodRoot: true,
-					MethodName: "some method",
+					DefName:   "getAuthorAndBooks",
+					TableName: "Author",
 					Fields: []PlFieldDef{
 						{
-							Name: "id",
+							Name:           "id",
+							TableFieldName: "id",
 							Type: PlType{
 								Primitive: INT,
 							},
 						},
 						{
-							Name: "name",
+							Name:           "name",
+							TableFieldName: "name",
 							Type: PlType{
 								Primitive: STRING,
 							},
@@ -316,25 +318,26 @@ func TestGetRowDef(t *testing.T) {
 					},
 				},
 				{
-					DefName:    "Book",
-					TableName:  "Book",
-					MethodRoot: false,
-					MethodName: "some method",
+					DefName:   "getAuthorAndBooks0",
+					TableName: "Book",
 					Fields: []PlFieldDef{
 						{
-							Name: "id",
+							Name:           "id",
+							TableFieldName: "id",
 							Type: PlType{
 								Primitive: INT,
 							},
 						},
 						{
-							Name: "authorId",
+							Name:           "authorId",
+							TableFieldName: "authorId",
 							Type: PlType{
 								Primitive: INT,
 							},
 						},
 						{
-							Name: "name",
+							Name:           "name",
+							TableFieldName: "name",
 							Type: PlType{
 								Primitive: STRING,
 							},

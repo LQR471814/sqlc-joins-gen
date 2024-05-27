@@ -11,35 +11,27 @@ import (
 type GetUserData struct {
 	Gpa              float64
 	Email            string
-	PSUserCourse     []GetUserDataPSUserCourse
-	MoodleUserCourse []GetUserDataPSUserCourse
+	PSUserCourse     []GetUserData0
+	MoodleUserCourse []GetUserData0
 }
 
 // Table: PSUserCourse
-type GetUserDataPSUserCourse struct {
+type GetUserData0 struct {
 	CourseName       string
 	UserEmail        string
-	PSUserMeeting    []GetUserDataMoodleUserCourse
-	PSUserAssignment []GetUserDataMoodleUserCourse
+	PSUserAssignment []GetUserData1
+	PSUserMeeting    []GetUserData1
 }
 
 // Table: MoodleUserCourse
-type GetUserDataMoodleUserCourse struct {
+type GetUserData1 struct {
 	CourseId     string
 	UserEmail    string
-	MoodleCourse GetUserDataPSUserCoursePSUserMeeting
-}
-
-// Table: PSUserMeeting
-type GetUserDataPSUserCoursePSUserMeeting struct {
-	UserEmail  string
-	CourseName string
-	StartTime  int
-	EndTime    int
+	MoodleCourse GetUserData00
 }
 
 // Table: PSUserAssignment
-type GetUserDataPSUserCoursePSUserAssignment struct {
+type GetUserData00 struct {
 	UserEmail      string
 	AssignmentName string
 	CourseName     string
@@ -47,21 +39,29 @@ type GetUserDataPSUserCoursePSUserAssignment struct {
 	Collected      int
 	Scored         sql.NullFloat64
 	Total          sql.NullFloat64
-	PSAssignment   GetUserDataMoodleUserCourseMoodleCourse
+	PSAssignment   GetUserData01
+}
+
+// Table: PSUserMeeting
+type GetUserData01 struct {
+	UserEmail  string
+	CourseName string
+	StartTime  int
+	EndTime    int
 }
 
 // Table: MoodleCourse
-type GetUserDataMoodleUserCourseMoodleCourse struct {
+type GetUserData10 struct {
 	Id               string
 	CourseName       string
 	Teacher          sql.NullString
 	Zoom             sql.NullString
-	MoodlePage       []GetUserDataPSUserCoursePSUserAssignmentPSAssignment
-	MoodleAssignment []GetUserDataPSUserCoursePSUserAssignmentPSAssignment
+	MoodlePage       []GetUserData000
+	MoodleAssignment []GetUserData000
 }
 
 // Table: PSAssignment
-type GetUserDataPSUserCoursePSUserAssignmentPSAssignment struct {
+type GetUserData000 struct {
 	Name               string
 	CourseName         string
 	AssignmentTypeName string
@@ -71,14 +71,14 @@ type GetUserDataPSUserCoursePSUserAssignmentPSAssignment struct {
 }
 
 // Table: MoodlePage
-type GetUserDataMoodleUserCourseMoodleCourseMoodlePage struct {
+type GetUserData100 struct {
 	CourseId string
 	Url      string
 	Content  string
 }
 
 // Table: MoodleAssignment
-type GetUserDataMoodleUserCourseMoodleCourseMoodleAssignment struct {
+type GetUserData101 struct {
 	Name        string
 	CourseId    string
 	Description sql.NullString
@@ -124,9 +124,9 @@ MoodleAssignment.duedate as MoodleAssignment_duedate
 MoodleAssignment.category as MoodleAssignment_category
 from GetUserData
 inner join PSUserCourse on PSUserCourse.userEmail = User.email
+inner join PSUserMeeting on PSUserMeeting.userEmail = PSUserCourse.userEmail and PSUserMeeting.courseName = PSUserCourse.courseName
 inner join PSUserAssignment on PSUserAssignment.courseName = PSUserCourse.courseName and PSUserAssignment.userEmail = PSUserCourse.userEmail
 inner join PSAssignment on PSUserAssignment.assignmentName = PSAssignment.name and PSUserAssignment.courseName = PSAssignment.courseName
-inner join PSUserMeeting on PSUserMeeting.userEmail = PSUserCourse.userEmail and PSUserMeeting.courseName = PSUserCourse.courseName
 inner join MoodleUserCourse on MoodleUserCourse.userEmail = User.email
 inner join MoodleCourse on MoodleUserCourse.courseId = MoodleCourse.id
 inner join MoodlePage on MoodlePage.courseId = MoodleCourse.id
@@ -161,57 +161,85 @@ func (q *Queries) GetUserData(ctx context.Context, args any) ([]GetUserData, err
 	defer rows.Close()
 
 	var GetUserDataMap map[string]GetUserData
-	var GetUserDataPSUserCourseMap map[string]GetUserDataPSUserCourse
-	var GetUserDataMoodleUserCourseMap map[string]GetUserDataMoodleUserCourse
-	var GetUserDataPSUserCoursePSUserMeetingMap map[string]GetUserDataPSUserCoursePSUserMeeting
-	var GetUserDataPSUserCoursePSUserAssignmentMap map[string]GetUserDataPSUserCoursePSUserAssignment
-	var GetUserDataMoodleUserCourseMoodleCourseMap map[string]GetUserDataMoodleUserCourseMoodleCourse
-	var GetUserDataPSUserCoursePSUserAssignmentPSAssignmentMap map[string]GetUserDataPSUserCoursePSUserAssignmentPSAssignment
-	var GetUserDataMoodleUserCourseMoodleCourseMoodlePageMap map[string]GetUserDataMoodleUserCourseMoodleCourseMoodlePage
-	var GetUserDataMoodleUserCourseMoodleCourseMoodleAssignmentMap map[string]GetUserDataMoodleUserCourseMoodleCourseMoodleAssignment
+	var GetUserData0Map map[string]GetUserData0
+	var GetUserData1Map map[string]GetUserData1
+	var GetUserData00Map map[string]GetUserData00
+	var GetUserData01Map map[string]GetUserData01
+	var GetUserData10Map map[string]GetUserData10
+	var GetUserData000Map map[string]GetUserData000
+	var GetUserData100Map map[string]GetUserData100
+	var GetUserData101Map map[string]GetUserData101
 
 	for rows.Next() {
 		var GetUserData GetUserData
-		var GetUserDataPSUserCourse GetUserDataPSUserCourse
-		var GetUserDataMoodleUserCourse GetUserDataMoodleUserCourse
-		var GetUserDataPSUserCoursePSUserMeeting GetUserDataPSUserCoursePSUserMeeting
-		var GetUserDataPSUserCoursePSUserAssignment GetUserDataPSUserCoursePSUserAssignment
-		var GetUserDataMoodleUserCourseMoodleCourse GetUserDataMoodleUserCourseMoodleCourse
-		var GetUserDataPSUserCoursePSUserAssignmentPSAssignment GetUserDataPSUserCoursePSUserAssignmentPSAssignment
-		var GetUserDataMoodleUserCourseMoodleCourseMoodlePage GetUserDataMoodleUserCourseMoodleCourseMoodlePage
-		var GetUserDataMoodleUserCourseMoodleCourseMoodleAssignment GetUserDataMoodleUserCourseMoodleCourseMoodleAssignment
+		var GetUserData0 GetUserData0
+		var GetUserData1 GetUserData1
+		var GetUserData00 GetUserData00
+		var GetUserData01 GetUserData01
+		var GetUserData10 GetUserData10
+		var GetUserData000 GetUserData000
+		var GetUserData100 GetUserData100
+		var GetUserData101 GetUserData101
 
 		err := rows.Scan(
 			&GetUserData.Gpa,
 			&GetUserData.Email,
-			&GetUserDataPSUserCourse.CourseName,
-			&GetUserDataPSUserCourse.UserEmail,
-			&GetUserDataMoodleUserCourse.CourseId,
-			&GetUserDataMoodleUserCourse.UserEmail,
-			&GetUserDataPSUserCoursePSUserMeeting.UserEmail,
-			&GetUserDataPSUserCoursePSUserMeeting.CourseName,
-			&GetUserDataPSUserCoursePSUserMeeting.StartTime,
-			&GetUserDataPSUserCoursePSUserMeeting.EndTime,
-			&GetUserDataMoodleUserCourse.CourseId,
-			&GetUserDataMoodleUserCourse.UserEmail,
-			&GetUserDataPSUserCoursePSUserMeeting.UserEmail,
-			&GetUserDataPSUserCoursePSUserMeeting.CourseName,
-			&GetUserDataPSUserCoursePSUserMeeting.StartTime,
-			&GetUserDataPSUserCoursePSUserMeeting.EndTime,
-			&GetUserDataPSUserCourse.CourseName,
-			&GetUserDataPSUserCourse.UserEmail,
-			&GetUserDataMoodleUserCourse.CourseId,
-			&GetUserDataMoodleUserCourse.UserEmail,
-			&GetUserDataPSUserCoursePSUserMeeting.UserEmail,
-			&GetUserDataPSUserCoursePSUserMeeting.CourseName,
-			&GetUserDataPSUserCoursePSUserMeeting.StartTime,
-			&GetUserDataPSUserCoursePSUserMeeting.EndTime,
-			&GetUserDataMoodleUserCourse.CourseId,
-			&GetUserDataMoodleUserCourse.UserEmail,
-			&GetUserDataPSUserCoursePSUserMeeting.UserEmail,
-			&GetUserDataPSUserCoursePSUserMeeting.CourseName,
-			&GetUserDataPSUserCoursePSUserMeeting.StartTime,
-			&GetUserDataPSUserCoursePSUserMeeting.EndTime,
+			&GetUserData0.CourseName,
+			&GetUserData0.UserEmail,
+			&GetUserData1.CourseId,
+			&GetUserData1.UserEmail,
+			&GetUserData00.UserEmail,
+			&GetUserData00.AssignmentName,
+			&GetUserData00.CourseName,
+			&GetUserData00.Missing,
+			&GetUserData00.Collected,
+			&GetUserData00.Scored,
+			&GetUserData00.Total,
+			&GetUserData01.UserEmail,
+			&GetUserData01.CourseName,
+			&GetUserData01.StartTime,
+			&GetUserData01.EndTime,
+			&GetUserData1.CourseId,
+			&GetUserData1.UserEmail,
+			&GetUserData00.UserEmail,
+			&GetUserData00.AssignmentName,
+			&GetUserData00.CourseName,
+			&GetUserData00.Missing,
+			&GetUserData00.Collected,
+			&GetUserData00.Scored,
+			&GetUserData00.Total,
+			&GetUserData01.UserEmail,
+			&GetUserData01.CourseName,
+			&GetUserData01.StartTime,
+			&GetUserData01.EndTime,
+			&GetUserData0.CourseName,
+			&GetUserData0.UserEmail,
+			&GetUserData1.CourseId,
+			&GetUserData1.UserEmail,
+			&GetUserData00.UserEmail,
+			&GetUserData00.AssignmentName,
+			&GetUserData00.CourseName,
+			&GetUserData00.Missing,
+			&GetUserData00.Collected,
+			&GetUserData00.Scored,
+			&GetUserData00.Total,
+			&GetUserData01.UserEmail,
+			&GetUserData01.CourseName,
+			&GetUserData01.StartTime,
+			&GetUserData01.EndTime,
+			&GetUserData1.CourseId,
+			&GetUserData1.UserEmail,
+			&GetUserData00.UserEmail,
+			&GetUserData00.AssignmentName,
+			&GetUserData00.CourseName,
+			&GetUserData00.Missing,
+			&GetUserData00.Collected,
+			&GetUserData00.Scored,
+			&GetUserData00.Total,
+			&GetUserData01.UserEmail,
+			&GetUserData01.CourseName,
+			&GetUserData01.StartTime,
+			&GetUserData01.EndTime,
 		)
 		if err != nil {
 			return nil, err

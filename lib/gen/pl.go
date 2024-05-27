@@ -42,6 +42,9 @@ type PlType struct {
 
 // a field definition in a struct, object typedef, or class
 type PlFieldDef struct {
+	// just for metadata usage
+	TableFieldName string
+
 	Name string
 	Type PlType
 }
@@ -49,36 +52,36 @@ type PlFieldDef struct {
 // a struct, object typedef, or class
 type PlRowDef struct {
 	// just for metadata usage
-	TableName  string
-	MethodName string
-	MethodRoot bool
+	TableName string
 
 	DefName string
 	Fields  []PlFieldDef
 }
 
-// refers to a RowDef and field in it
+// refers to a Table and a column in it
 type PlScanEntry struct {
-	RowDef int
-	Field  int
+	RowDefIdx int
+	FieldIdx  int
+}
+
+// refers to a collection of queries
+type PlMethodDef struct {
+	MethodName string
+	RowDefs    []PlRowDef
+	RootDef    int
+	// defines the order of columns when scanning rows in
+	ScanOrder []PlScanEntry
+	Sql       string
 }
 
 // represents a single file in the target language
 type PlScript struct {
-	RowDefs   []PlRowDef
-	// defines the order of columns when scanning rows in
-	ScanOrder []PlScanEntry
-}
-
-type PlSqlLocation struct {
-	MethodName string
-	Location   int
+	Methods []PlMethodDef
 }
 
 type PlScriptOutput struct {
-	Path              string
-	Contents          []byte
-	SqlEmbedLocations []PlSqlLocation
+	Path     string
+	Contents []byte
 }
 
 // note: PL stands for "programming language"

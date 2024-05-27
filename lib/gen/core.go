@@ -94,16 +94,15 @@ func (m GenManager) getRowDefs(method querycfg.Method, out *[]PlRowDef) {
 
 		table := m.Schema.Tables[current.tableIdx]
 		def := PlRowDef{
-			MethodRoot: current.tableIdx == rootTableIdx,
-			MethodName: method.Name,
-			TableName:  table.Name,
-			DefName:    current.rowDefName,
+			TableName: table.Name,
+			DefName:   current.rowDefName,
 		}
 
 		columns := m.getColumns(current.query, table)
 		for _, col := range columns {
 			def.Fields = append(def.Fields, PlFieldDef{
-				Name: col.Name,
+				TableFieldName: col.Name,
+				Name:           col.Name,
 				Type: PlType{
 					Primitive: SqlColumnTypeToPlType(col.Type),
 					Nullable:  col.Nullable,
@@ -148,7 +147,7 @@ func (m GenManager) getRowDefs(method querycfg.Method, out *[]PlRowDef) {
 				tableIdx   int
 				query      querycfg.Query
 			}{
-				rowDefName: current.rowDefName + childTableName,
+				rowDefName: current.rowDefName + fmt.Sprint(i),
 				tableIdx:   childTableIdx,
 				query:      childQuery,
 			})
@@ -309,34 +308,57 @@ func (m GenManager) Generate(
 ) error {
 	script := PlScript{}
 	for _, method := range methods {
-		m.getRowDefs(method, &script.RowDefs)
+		stmt := m.getSelect(method)
+		sql := sqlgen.Select(stmt)
+
+		out := PlMethodDef{
+			MethodName: method.Name,
+			RootDef:    0,
+			Sql:        sql,
+		}
+
+		m.getRowDefs(method, &out.RowDefs)
+		for _, selectField := range stmt.Select {
+			defIdx := -1
+			for i, row := range out.RowDefs {
+				if row.TableName == selectField.Table {
+					defIdx = i
+					break
+				}
+			}
+			if defIdx < 0 {
+				panic(fmt.Sprintf(
+					"could not find table '%s' in RowDefs for '%s'",
+					selectField.Table, method.Name,
+				))
+			}
+
+			fieldIdx := -1
+			for i, field := range out.RowDefs[defIdx].Fields {
+				if field.TableFieldName == selectField.Attr {
+					fieldIdx = i
+					break
+				}
+			}
+			if fieldIdx < 0 {
+				panic(fmt.Sprintf(
+					"could not find field '%s' in RowDef '%s' for '%s'",
+					selectField.Table, out.RowDefs[defIdx].DefName, method.Name,
+				))
+			}
+
+			out.ScanOrder = append(out.ScanOrder, PlScanEntry{
+				RowDefIdx: defIdx,
+				FieldIdx:  fieldIdx,
+			})
+		}
+
+		script.Methods = append(script.Methods, out)
 	}
 
 	outputs := plgen.Script(task, script)
 	for _, out := range outputs {
-		interpolated := ""
-		cursor := 0
-		for _, location := range out.SqlEmbedLocations {
-			interpolated += string(out.Contents[cursor:location.Location])
-
-			var method querycfg.Method
-			for _, m := range methods {
-				if m.Name == location.MethodName {
-					method = m
-					break
-				}
-			}
-			if method.Name == "" {
-				return fmt.Errorf("unknown method '%s'", location.MethodName)
-			}
-
-			stmt := m.getSelect(method)
-			interpolated += sqlgen.Select(stmt)
-			cursor = location.Location
-		}
-		interpolated += string(out.Contents[cursor:len(out.Contents)])
-
-		err := os.WriteFile(out.Path, []byte(interpolated), 0777)
+		err := os.WriteFile(out.Path, out.Contents, 0777)
 		if err != nil {
 			return err
 		}
