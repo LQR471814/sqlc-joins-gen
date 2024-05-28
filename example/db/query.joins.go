@@ -91,6 +91,10 @@ User.gpa as User_gpa
 User.email as User_email
 PSUserCourse.courseName as PSUserCourse_courseName
 PSUserCourse.userEmail as PSUserCourse_userEmail
+PSUserMeeting.userEmail as PSUserMeeting_userEmail
+PSUserMeeting.courseName as PSUserMeeting_courseName
+PSUserMeeting.startTime as PSUserMeeting_startTime
+PSUserMeeting.endTime as PSUserMeeting_endTime
 PSUserAssignment.userEmail as PSUserAssignment_userEmail
 PSUserAssignment.assignmentName as PSUserAssignment_assignmentName
 PSUserAssignment.courseName as PSUserAssignment_courseName
@@ -104,10 +108,6 @@ PSAssignment.assignmentTypeName as PSAssignment_assignmentTypeName
 PSAssignment.description as PSAssignment_description
 PSAssignment.duedate as PSAssignment_duedate
 PSAssignment.category as PSAssignment_category
-PSUserMeeting.userEmail as PSUserMeeting_userEmail
-PSUserMeeting.courseName as PSUserMeeting_courseName
-PSUserMeeting.startTime as PSUserMeeting_startTime
-PSUserMeeting.endTime as PSUserMeeting_endTime
 MoodleUserCourse.courseId as MoodleUserCourse_courseId
 MoodleUserCourse.userEmail as MoodleUserCourse_userEmail
 MoodleCourse.id as MoodleCourse_id
@@ -124,15 +124,22 @@ MoodleAssignment.duedate as MoodleAssignment_duedate
 MoodleAssignment.category as MoodleAssignment_category
 from GetUserData
 inner join PSUserCourse on PSUserCourse.userEmail = User.email
-inner join PSUserMeeting on PSUserMeeting.userEmail = PSUserCourse.userEmail and PSUserMeeting.courseName = PSUserCourse.courseName
 inner join PSUserAssignment on PSUserAssignment.courseName = PSUserCourse.courseName and PSUserAssignment.userEmail = PSUserCourse.userEmail
 inner join PSAssignment on PSUserAssignment.assignmentName = PSAssignment.name and PSUserAssignment.courseName = PSAssignment.courseName
+inner join PSUserMeeting on PSUserMeeting.userEmail = PSUserCourse.userEmail and PSUserMeeting.courseName = PSUserCourse.courseName
 inner join MoodleUserCourse on MoodleUserCourse.userEmail = User.email
 inner join MoodleCourse on MoodleUserCourse.courseId = MoodleCourse.id
-inner join MoodlePage on MoodlePage.courseId = MoodleCourse.id
 inner join MoodleAssignment on MoodleAssignment.courseId = MoodleCourse.id
+inner join MoodlePage on MoodlePage.courseId = MoodleCourse.id
 where User.email = ?
 order by
+MoodlePage.url asc,
+MoodlePage.courseId asc,
+MoodleAssignment.name asc,
+MoodleAssignment.courseId asc,
+MoodleCourse.id asc,
+MoodleUserCourse.courseId asc,
+MoodleUserCourse.userEmail asc,
 PSAssignment.name asc,
 PSAssignment.courseName asc,
 PSUserAssignment.userEmail asc,
@@ -143,13 +150,6 @@ PSUserMeeting.courseName asc,
 PSUserMeeting.startTime asc,
 PSUserCourse.userEmail asc,
 PSUserCourse.courseName asc,
-MoodlePage.url asc,
-MoodlePage.courseId asc,
-MoodleAssignment.name asc,
-MoodleAssignment.courseId asc,
-MoodleCourse.id asc,
-MoodleUserCourse.courseId asc,
-MoodleUserCourse.userEmail asc,
 User.email asc,
 User.gpa asc`
 

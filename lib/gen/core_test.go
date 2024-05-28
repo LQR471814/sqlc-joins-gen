@@ -38,12 +38,24 @@ func TestIsUniqueFkey(t *testing.T) {
 			fkey:     schema.TESTING_SCHEMAS[0].Tables[4].ForeignKeys[0],
 			expected: true,
 		},
+		{
+			schema:   schema.TESTING_SCHEMAS[1],
+			table:    schema.TESTING_SCHEMAS[1].Tables[8],
+			fkey:     schema.TESTING_SCHEMAS[1].Tables[8].ForeignKeys[0],
+			expected: false,
+		},
+		{
+			schema:   schema.TESTING_SCHEMAS[1],
+			table:    schema.TESTING_SCHEMAS[1].Tables[5],
+			fkey:     schema.TESTING_SCHEMAS[1].Tables[5].ForeignKeys[0],
+			expected: false,
+		},
 	}
 
 	for _, test := range testCases {
 		g := GenManager{Schema: test.schema}
 		result := g.isUniqueFkey(test.table, test.fkey)
-		diff := utils.DiffUnordered(result, test.expected)
+		diff := utils.DiffUnordered(test.expected, result)
 		if diff != "" {
 			t.Fatalf(
 				"got different result than expected:\n%s\ntable: %s\nfkey target: %d",
@@ -91,6 +103,48 @@ func TestGetSelectFields(t *testing.T) {
 				"BookAuthorRelevanceRating_authorId",
 				"BookAuthorRelevanceRating_bookId",
 				"BookAuthorRelevanceRating_ratedBy",
+			},
+		},
+		{
+			schema:      schemas[1],
+			parentTable: "User",
+			query:       querycfg.TESTING_METHODS[0].Query,
+			expected: []string{
+				"User_email",
+				"User_gpa",
+				"PSUserCourse_courseName",
+				"PSUserCourse_userEmail",
+				"PSUserAssignment_userEmail",
+				"PSUserAssignment_assignmentName",
+				"PSUserAssignment_courseName",
+				"PSUserAssignment_missing",
+				"PSUserAssignment_collected",
+				"PSUserAssignment_scored",
+				"PSUserAssignment_total",
+				"PSAssignment_name",
+				"PSAssignment_courseName",
+				"PSAssignment_assignmentTypeName",
+				"PSAssignment_description",
+				"PSAssignment_duedate",
+				"PSAssignment_category",
+				"PSUserMeeting_userEmail",
+				"PSUserMeeting_courseName",
+				"PSUserMeeting_startTime",
+				"PSUserMeeting_endTime",
+				"MoodleUserCourse_courseId",
+				"MoodleUserCourse_userEmail",
+				"MoodleCourse_id",
+				"MoodleCourse_courseName",
+				"MoodleCourse_teacher",
+				"MoodleCourse_zoom",
+				"MoodlePage_courseId",
+				"MoodlePage_url",
+				"MoodlePage_content",
+				"MoodleAssignment_name",
+				"MoodleAssignment_courseId",
+				"MoodleAssignment_description",
+				"MoodleAssignment_duedate",
+				"MoodleAssignment_category",
 			},
 		},
 	}
@@ -235,6 +289,7 @@ func TestGetRowDef(t *testing.T) {
 				},
 			},
 			expected: []PlRowDef{
+				// index: 0
 				{
 					DefName:   "getBooksAndAuthor",
 					TableName: "Book",
@@ -257,11 +312,13 @@ func TestGetRowDef(t *testing.T) {
 							Name: "Author",
 							Type: PlType{
 								IsRowDef: true,
+								Array:    false,
 								RowDef:   1,
 							},
 						},
 					},
 				},
+				// index: 1
 				{
 					DefName:   "getBooksAndAuthor0",
 					TableName: "Author",
@@ -341,6 +398,312 @@ func TestGetRowDef(t *testing.T) {
 							Type: PlType{
 								Primitive: STRING,
 							},
+						},
+					},
+				},
+			},
+		},
+		{
+			schema: schema.TESTING_SCHEMAS[1],
+			method: querycfg.TESTING_METHODS[0],
+			expected: []PlRowDef{
+				// index: 0
+				{
+					TableName: "User",
+					DefName:   "getUserData",
+					Fields: []PlFieldDef{
+						{
+							TableFieldName: "gpa",
+							Name:           "gpa",
+							Type:           PlType{Primitive: FLOAT},
+						},
+						{
+							TableFieldName: "email",
+							Name:           "email",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							Name: "PSUserCourse",
+							Type: PlType{
+								IsRowDef: true,
+								Array:    true,
+								RowDef:   1,
+							},
+						},
+						{
+							Name: "MoodleUserCourse",
+							Type: PlType{
+								IsRowDef: true,
+								Array:    true,
+								RowDef:   2,
+							},
+						},
+					},
+				},
+				// index: 1
+				{
+					TableName: "PSUserCourse",
+					DefName:   "getUserData0",
+					Fields: []PlFieldDef{
+						{
+							TableFieldName: "courseName",
+							Name:           "courseName",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "userEmail",
+							Name:           "userEmail",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							Name: "PSUserAssignment",
+							Type: PlType{
+								IsRowDef: true,
+								Array:    true,
+								RowDef:   3,
+							},
+						},
+						{
+							Name: "PSUserMeeting",
+							Type: PlType{
+								IsRowDef: true,
+								Array:    true,
+								RowDef:   4,
+							},
+						},
+					},
+				},
+				// index: 2
+				{
+					TableName: "MoodleUserCourse",
+					DefName:   "getUserData1",
+					Fields: []PlFieldDef{
+						{
+							TableFieldName: "courseId",
+							Name:           "courseId",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "userEmail",
+							Name:           "userEmail",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							Name: "MoodleCourse",
+							Type: PlType{
+								IsRowDef: true,
+								RowDef:   5,
+							},
+						},
+					},
+				},
+				// index: 3
+				{
+					TableName: "PSUserAssignment",
+					DefName:   "getUserData00",
+					Fields: []PlFieldDef{
+						{
+							TableFieldName: "userEmail",
+							Name:           "userEmail",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "assignmentName",
+							Name:           "assignmentName",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "courseName",
+							Name:           "courseName",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "missing",
+							Name:           "missing",
+							Type:           PlType{Primitive: INT},
+						},
+						{
+							TableFieldName: "collected",
+							Name:           "collected",
+							Type:           PlType{Primitive: INT},
+						},
+						{
+							TableFieldName: "scored",
+							Name:           "scored",
+							Type:           PlType{Primitive: FLOAT, Nullable: true},
+						},
+						{
+							TableFieldName: "total",
+							Name:           "total",
+							Type:           PlType{Primitive: FLOAT, Nullable: true},
+						},
+						{
+							Name: "PSAssignment",
+							Type: PlType{
+								IsRowDef: true,
+								RowDef:   6,
+							},
+						},
+					},
+				},
+				// index: 4
+				{
+					TableName: "PSUserMeeting",
+					DefName:   "getUserData01",
+					Fields: []PlFieldDef{
+						{
+							TableFieldName: "userEmail",
+							Name:           "userEmail",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "courseName",
+							Name:           "courseName",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "startTime",
+							Name:           "startTime",
+							Type:           PlType{Primitive: INT},
+						},
+						{
+							TableFieldName: "endTime",
+							Name:           "endTime",
+							Type:           PlType{Primitive: INT},
+						},
+					},
+				},
+				// index: 5
+				{
+					TableName: "MoodleCourse",
+					DefName:   "getUserData10",
+					Fields: []PlFieldDef{
+						{
+							TableFieldName: "id",
+							Name:           "id",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "courseName",
+							Name:           "courseName",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "teacher",
+							Name:           "teacher",
+							Type:           PlType{Primitive: STRING, Nullable: true},
+						},
+						{
+							TableFieldName: "zoom",
+							Name:           "zoom",
+							Type:           PlType{Primitive: INT, Nullable: true},
+						},
+						{
+							Name: "MoodlePage",
+							Type: PlType{
+								IsRowDef: true,
+								Array:    true,
+								RowDef:   7,
+							},
+						},
+						{
+							Name: "MoodleAssignment",
+							Type: PlType{
+								IsRowDef: true,
+								Array:    true,
+								RowDef:   8,
+							},
+						},
+					},
+				},
+				// index: 6
+				{
+					TableName: "PSAssignment",
+					DefName:   "getUserData000",
+					Fields: []PlFieldDef{
+						{
+							TableFieldName: "name",
+							Name:           "name",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "courseName",
+							Name:           "courseName",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "assignmentTypeName",
+							Name:           "assignmentTypeName",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "description",
+							Name:           "description",
+							Type:           PlType{Primitive: STRING, Nullable: true},
+						},
+						{
+							TableFieldName: "duedate",
+							Name:           "duedate",
+							Type:           PlType{Primitive: INT},
+						},
+						{
+							TableFieldName: "category",
+							Name:           "category",
+							Type:           PlType{Primitive: STRING},
+						},
+					},
+				},
+				// index: 7
+				{
+					TableName: "MoodlePage",
+					DefName:   "getUserData100",
+					Fields: []PlFieldDef{
+						{
+							TableFieldName: "courseId",
+							Name:           "courseId",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "url",
+							Name:           "url",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "content",
+							Name:           "content",
+							Type:           PlType{Primitive: STRING},
+						},
+					},
+				},
+				// index: 8
+				{
+					TableName: "MoodleAssignment",
+					DefName:   "getUserData101",
+					Fields: []PlFieldDef{
+						{
+							TableFieldName: "name",
+							Name:           "name",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "courseId",
+							Name:           "courseId",
+							Type:           PlType{Primitive: STRING},
+						},
+						{
+							TableFieldName: "description",
+							Name:           "description",
+							Type:           PlType{Primitive: STRING, Nullable: true},
+						},
+						{
+							TableFieldName: "duedate",
+							Name:           "duedate",
+							Type:           PlType{Primitive: INT},
+						},
+						{
+							TableFieldName: "category",
+							Name:           "category",
+							Type:           PlType{Primitive: STRING, Nullable: true},
 						},
 					},
 				},

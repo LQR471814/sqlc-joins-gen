@@ -167,20 +167,6 @@ create table MoodleAssignment (
     foreign key (courseId) references MoodleCourse(id)
         on update cascade
         on delete cascade
-);
-
-create table WeightCourse (
-    name text not null primary key
-);
-
-create table WeightCourseAssignmentType (
-    courseName text not null,
-    name text not null,
-    weight real not null,
-    primary key (courseName, name),
-    foreign key (courseName) references WeightCourse(name)
-        on update cascade
-        on delete cascade
 );`,
 		),
 		Schema: schema.TESTING_SCHEMAS[1],

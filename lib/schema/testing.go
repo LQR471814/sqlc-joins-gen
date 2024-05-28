@@ -3,6 +3,7 @@ package schema
 var TESTING_SCHEMAS = []Schema{
 	{
 		Tables: []Table{
+			// index: 0
 			{
 				Name: "Author",
 				Columns: []Column{
@@ -20,6 +21,7 @@ var TESTING_SCHEMAS = []Schema{
 				PrimaryKey:  []int{0},
 				ForeignKeys: nil,
 			},
+			// index: 1
 			{
 				Name: "Book",
 				Columns: []Column{
@@ -52,6 +54,7 @@ var TESTING_SCHEMAS = []Schema{
 					},
 				},
 			},
+			// index: 2
 			{
 				Name: "BookAuthorRelevance",
 				Columns: []Column{
@@ -93,6 +96,7 @@ var TESTING_SCHEMAS = []Schema{
 					},
 				},
 			},
+			// index: 3
 			{
 				Name: "BookAuthorRelevanceRating",
 				Columns: []Column{
@@ -143,6 +147,7 @@ var TESTING_SCHEMAS = []Schema{
 					},
 				},
 			},
+			// index: 4
 			{
 				Name: "BookMetadata",
 				Columns: []Column{
@@ -179,6 +184,7 @@ var TESTING_SCHEMAS = []Schema{
 	},
 	{
 		Tables: []Table{
+			// index: 0
 			{
 				Name: "User",
 				Columns: []Column{
@@ -195,6 +201,7 @@ var TESTING_SCHEMAS = []Schema{
 				},
 				PrimaryKey: []int{0},
 			},
+			// index: 1
 			{
 				Name: "PSCourse",
 				Columns: []Column{
@@ -206,6 +213,7 @@ var TESTING_SCHEMAS = []Schema{
 				},
 				PrimaryKey: []int{0},
 			},
+			// index: 2
 			{
 				Name: "PSUserCourse",
 				Columns: []Column{
@@ -242,6 +250,7 @@ var TESTING_SCHEMAS = []Schema{
 					},
 				},
 			},
+			// index: 3
 			{
 				Name: "PSUserMeeting",
 				Columns: []Column{
@@ -261,7 +270,7 @@ var TESTING_SCHEMAS = []Schema{
 						Nullable: false,
 					},
 					{
-						Name:     "endTIme",
+						Name:     "endTime",
 						Type:     INT,
 						Nullable: false,
 					},
@@ -283,6 +292,7 @@ var TESTING_SCHEMAS = []Schema{
 					},
 				},
 			},
+			// index: 4
 			{
 				Name: "PSAssignmentType",
 				Columns: []Column{
@@ -310,6 +320,7 @@ var TESTING_SCHEMAS = []Schema{
 					},
 				},
 			},
+			// index: 5
 			{
 				Name: "PSAssignment",
 				Columns: []Column{
@@ -354,13 +365,14 @@ var TESTING_SCHEMAS = []Schema{
 								TargetColumn: 0,
 							},
 							{
-								SourceColumn: 0,
+								SourceColumn: 2,
 								TargetColumn: 1,
 							},
 						},
 					},
 				},
 			},
+			// index: 6
 			{
 				Name: "PSUserAssignment",
 				Columns: []Column{
@@ -412,6 +424,159 @@ var TESTING_SCHEMAS = []Schema{
 							{
 								SourceColumn: 2,
 								TargetColumn: 1,
+							},
+						},
+					},
+					{
+						TargetTable: 2,
+						On: []ForeignColumn{
+							{
+								SourceColumn: 2,
+								TargetColumn: 1,
+							},
+							{
+								SourceColumn: 0,
+								TargetColumn: 0,
+							},
+						},
+					},
+				},
+			},
+			// index: 7
+			{
+				Name: "MoodleCourse",
+				Columns: []Column{
+					{
+						Name:     "id",
+						Type:     TEXT,
+						Nullable: false,
+					},
+					{
+						Name:     "courseName",
+						Type:     TEXT,
+						Nullable: false,
+					},
+					{
+						Name:     "teacher",
+						Type:     TEXT,
+						Nullable: true,
+					},
+					{
+						Name:     "zoom",
+						Type:     TEXT,
+						Nullable: true,
+					},
+				},
+				PrimaryKey: []int{0},
+			},
+			// index: 8
+			{
+				Name: "MoodleUserCourse",
+				Columns: []Column{
+					{
+						Name:     "courseId",
+						Type:     TEXT,
+						Nullable: false,
+					},
+					{
+						Name:     "userEmail",
+						Type:     TEXT,
+						Nullable: false,
+					},
+				},
+				PrimaryKey: []int{0, 1},
+				ForeignKeys: []ForeignKey{
+					{
+						TargetTable: 7,
+						On: []ForeignColumn{
+							{
+								SourceColumn: 0,
+								TargetColumn: 0,
+							},
+						},
+					},
+					{
+						TargetTable: 0,
+						On: []ForeignColumn{
+							{
+								SourceColumn: 1,
+								TargetColumn: 0,
+							},
+						},
+					},
+				},
+			},
+			// index: 9
+			{
+				Name: "MoodlePage",
+				Columns: []Column{
+					{
+						Name:     "courseId",
+						Type:     TEXT,
+						Nullable: false,
+					},
+					{
+						Name:     "url",
+						Type:     TEXT,
+						Nullable: false,
+					},
+					{
+						Name:     "content",
+						Type:     TEXT,
+						Nullable: false,
+					},
+				},
+				PrimaryKey: []int{0, 1},
+				ForeignKeys: []ForeignKey{
+					{
+						TargetTable: 7,
+						On: []ForeignColumn{
+							{
+								SourceColumn: 0,
+								TargetColumn: 0,
+							},
+						},
+					},
+				},
+			},
+			// index: 10
+			{
+				Name: "MoodleAssignment",
+				Columns: []Column{
+					{
+						Name:     "name",
+						Type:     TEXT,
+						Nullable: false,
+					},
+					{
+						Name:     "courseId",
+						Type:     TEXT,
+						Nullable: false,
+					},
+					{
+						Name:     "description",
+						Type:     TEXT,
+						Nullable: true,
+					},
+					{
+						Name:     "duedate",
+						Type:     INT,
+						Nullable: false,
+					},
+					{
+						Name:     "category",
+						Type:     TEXT,
+						Nullable: true,
+					},
+				},
+				PrimaryKey: []int{0, 1},
+				ForeignKeys: []ForeignKey{
+					{
+						TargetTable: 7,
+						On: []ForeignColumn{
+							{
+								SourceColumn: 1,
+								TargetColumn: 0,
 							},
 						},
 					},

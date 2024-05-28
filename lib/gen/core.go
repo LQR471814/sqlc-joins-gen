@@ -89,6 +89,7 @@ func (m GenManager) getRowDefs(method querycfg.Method, out *[]PlRowDef) {
 		},
 	}
 
+	rowDefIdxOffset := len(*out)
 	for len(queue) > 0 {
 		current := queue[0]
 
@@ -151,12 +152,13 @@ func (m GenManager) getRowDefs(method querycfg.Method, out *[]PlRowDef) {
 				tableIdx:   childTableIdx,
 				query:      childQuery,
 			})
+			rowDefIdxOffset++
 
 			def.Fields = append(def.Fields, PlFieldDef{
 				Name: childTableName,
 				Type: PlType{
 					IsRowDef: true,
-					RowDef:   len(*out) + 1,
+					RowDef:   rowDefIdxOffset,
 					Array:    !isUniqueFkey,
 				},
 			})
