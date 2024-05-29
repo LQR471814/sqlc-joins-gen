@@ -1,14 +1,14 @@
-package sqlite
+package inputs
 
 import (
 	"fmt"
-	"sqlc-joins-gen/lib/schema"
+	"sqlc-joins-gen/lib/types"
 	"strings"
 
 	sqlparse "github.com/alicebob/sqlittle/sql"
 )
 
-func removeCommentLines(block string) string {
+func removeSqliteCommentLines(block string) string {
 	lines := strings.Split(block, "\n")
 	result := ""
 	for _, l := range lines {
@@ -20,7 +20,7 @@ func removeCommentLines(block string) string {
 	return result
 }
 
-func parseSqlScript(script string) ([]any, error) {
+func parseSqliteScript(script string) ([]any, error) {
 	var statements []any
 
 	lines := strings.Split(script, ";")
@@ -30,7 +30,7 @@ func parseSqlScript(script string) ([]any, error) {
 			continue
 		}
 
-		stmt, err := sqlparse.Parse(removeCommentLines(trimmed))
+		stmt, err := sqlparse.Parse(removeSqliteCommentLines(trimmed))
 		if err != nil {
 			return nil, err
 		}
@@ -44,13 +44,13 @@ func parseSqlScript(script string) ([]any, error) {
 	return statements, nil
 }
 
-func ParseSchema(sqliteScript []byte) (schema.Schema, error) {
-	statements, err := parseSqlScript(string(sqliteScript))
+func ParseSqliteSchema(sqliteScript []byte) (types.Schema, error) {
+	statements, err := parseSqliteScript(string(sqliteScript))
 	if err != nil {
-		return schema.Schema{}, err
+		return types.Schema{}, err
 	}
 
-	var tables []schema.Table
+	var tables []*types.Table
 
 	for _, s := range statements {
 		switch s.(type) {
@@ -61,30 +61,31 @@ func ParseSchema(sqliteScript []byte) (schema.Schema, error) {
 
 		stmt := s.(sqlparse.CreateTableStmt)
 
-		var pkey []int
-		var unique [][]int
+		var pkey []*types.Column
+		var unique [][]*types.Column
 
-		columns := []schema.Column{}
-		for i, col := range stmt.Columns {
-			columns = append(columns, schema.Column{
-				Name:     col.Name,
-				Type:     col.Type,
-				Nullable: col.Null,
-			})
-
-			if col.PrimaryKey {
-				pkey = []int{i}
+		columns := []*types.Column{}
+		for _, sqlcol := range stmt.Columns {
+			col := &types.Column{
+				Name:     sqlcol.Name,
+				Type:     sqlcol.Type,
+				Nullable: sqlcol.Null,
 			}
-			if col.Unique {
-				unique = append(unique, []int{i})
+			columns = append(columns, col)
+
+			if sqlcol.PrimaryKey {
+				pkey = []*types.Column{col}
+			}
+			if sqlcol.Unique {
+				unique = append(unique, []*types.Column{col})
 			}
 		}
 
-		var fkeys []schema.ForeignKey
+		var fkeys []types.ForeignKey
 		for _, intf := range stmt.Constraints {
 			switch cnstr := intf.(type) {
 			case sqlparse.TableUnique:
-				var fields []int
+				var fields []*types.Column
 				for _, indexed := range cnstr.IndexedColumns {
 					idx := -1
 					for i, col := range stmt.Columns {
@@ -94,12 +95,12 @@ func ParseSchema(sqliteScript []byte) (schema.Schema, error) {
 						}
 					}
 					if idx < 0 {
-						return schema.Schema{}, fmt.Errorf(
+						return types.Schema{}, fmt.Errorf(
 							"undefined source column \"%s\" of foreign key in \"%s\"",
 							indexed.Column, stmt.Table,
 						)
 					}
-					fields = append(fields, idx)
+					fields = append(fields, columns[idx])
 				}
 				unique = append(unique, fields)
 			case sqlparse.TableForeignKey:
@@ -111,7 +112,7 @@ func ParseSchema(sqliteScript []byte) (schema.Schema, error) {
 					}
 				}
 				if targetTableIdx < 0 {
-					return schema.Schema{}, fmt.Errorf(
+					return types.Schema{}, fmt.Errorf(
 						"undefined target table \"%s\" of foreign key in \"%s\"",
 						cnstr.Clause.ForeignTable,
 						stmt.Table,
@@ -119,7 +120,7 @@ func ParseSchema(sqliteScript []byte) (schema.Schema, error) {
 				}
 				targetTable := tables[targetTableIdx]
 
-				foreignColumns := []schema.ForeignColumn{}
+				on := []types.ForeignColumn{}
 				for i, col := range cnstr.Clause.ForeignColumns {
 					sourceCol := cnstr.Columns[i]
 					sourceColIdx := -1
@@ -130,7 +131,7 @@ func ParseSchema(sqliteScript []byte) (schema.Schema, error) {
 						}
 					}
 					if sourceColIdx < 0 {
-						return schema.Schema{}, fmt.Errorf(
+						return types.Schema{}, fmt.Errorf(
 							"undefined source column \"%s\" of foreign key in \"%s\"",
 							sourceCol, stmt.Table,
 						)
@@ -144,35 +145,35 @@ func ParseSchema(sqliteScript []byte) (schema.Schema, error) {
 						}
 					}
 					if targetColIdx < 0 {
-						return schema.Schema{}, fmt.Errorf(
+						return types.Schema{}, fmt.Errorf(
 							"undefined target column \"%s\" in target table \"%s\" of foreign key in \"%s\"",
 							col,
 							cnstr.Clause.ForeignTable,
 							stmt.Table,
 						)
 					}
-
-					foreignColumns = append(foreignColumns, schema.ForeignColumn{
-						SourceColumn: sourceColIdx,
-						TargetColumn: targetColIdx,
+					
+					on = append(on, types.ForeignColumn{
+						SourceColumn: columns[sourceColIdx],
+						TargetColumn: targetTable.Columns[targetColIdx],
 					})
 				}
 
-				fkeys = append(fkeys, schema.ForeignKey{
-					TargetTable: targetTableIdx,
-					On:          foreignColumns,
+				fkeys = append(fkeys, types.ForeignKey{
+					TargetTable: tables[targetTableIdx],
+					On:          on,
 				})
 			case sqlparse.TablePrimaryKey:
-				pkey = []int{}
+				pkey = []*types.Column{}
 			targetColumns:
 				for _, indexed := range cnstr.IndexedColumns {
-					for i, col := range columns {
+					for _, col := range columns {
 						if indexed.Column == col.Name {
-							pkey = append(pkey, i)
+							pkey = append(pkey, col)
 							continue targetColumns
 						}
 					}
-					return schema.Schema{}, fmt.Errorf(
+					return types.Schema{}, fmt.Errorf(
 						"undefined column \"%s\" of primary key in \"%s\"",
 						indexed,
 						stmt.Table,
@@ -181,7 +182,7 @@ func ParseSchema(sqliteScript []byte) (schema.Schema, error) {
 			}
 		}
 
-		tables = append(tables, schema.Table{
+		tables = append(tables, &types.Table{
 			Name:         stmt.Table,
 			Columns:      columns,
 			PrimaryKey:   pkey,
@@ -190,5 +191,5 @@ func ParseSchema(sqliteScript []byte) (schema.Schema, error) {
 		})
 	}
 
-	return schema.Schema{Tables: tables}, nil
+	return types.Schema{Tables: tables}, nil
 }

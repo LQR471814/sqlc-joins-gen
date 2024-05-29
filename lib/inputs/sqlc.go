@@ -1,4 +1,4 @@
-package sqlc
+package inputs
 
 import (
 	"errors"
@@ -10,29 +10,29 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Config struct {
-	Sql []Target `yaml:"sql"`
+type SqlcConfig struct {
+	Sql []SqlcTarget `yaml:"sql"`
 }
 
-type GenCfg struct {
+type SqlcGenCfg struct {
 	Go struct {
 		Package string `yaml:"package"`
 		Out     string `yaml:"out"`
 	} `yaml:"go"`
 }
 
-type Target struct {
-	Engine  string `yaml:"engine"`
-	Queries string `yaml:"queries"`
-	Schema  string `yaml:"schema"`
-	Gen     GenCfg `yaml:"gen"`
+type SqlcTarget struct {
+	Engine  string     `yaml:"engine"`
+	Queries string     `yaml:"queries"`
+	Schema  string     `yaml:"schema"`
+	Gen     SqlcGenCfg `yaml:"gen"`
 }
 
-type CodegenTask struct {
+type SqlcCodegenTask struct {
 	CfgDir string
 	Schema []byte
 	Joins  []byte
-	Gen    GenCfg
+	Gen    SqlcGenCfg
 }
 
 func replaceExt(filename, ext string) string {
@@ -69,7 +69,7 @@ func readSqlcConfig(pathOrDir string, isDir bool) (*os.File, error) {
 	)
 }
 
-func LoadConfig(pathOrDir string, isDir bool) ([]CodegenTask, error) {
+func LoadSqlcConfig(pathOrDir string, isDir bool) ([]SqlcCodegenTask, error) {
 	f, err := readSqlcConfig(pathOrDir, isDir)
 	if err != nil {
 		return nil, err
@@ -81,14 +81,14 @@ func LoadConfig(pathOrDir string, isDir bool) ([]CodegenTask, error) {
 		dir = path.Dir(pathOrDir)
 	}
 
-	cfg := Config{}
+	cfg := SqlcConfig{}
 	decoder := yaml.NewDecoder(f)
 	err = decoder.Decode(&cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	var targets []Target
+	var targets []SqlcTarget
 	for _, target := range cfg.Sql {
 		if target.Engine == "sqlite" {
 			targets = append(targets, target)
@@ -98,7 +98,7 @@ func LoadConfig(pathOrDir string, isDir bool) ([]CodegenTask, error) {
 		return nil, errors.New("no sqlc targets are of the sqlite engine")
 	}
 
-	var tasks []CodegenTask
+	var tasks []SqlcCodegenTask
 	for _, target := range targets {
 		schemaBuff, err := os.ReadFile(path.Join(dir, target.Schema))
 		if err != nil {
@@ -115,7 +115,7 @@ func LoadConfig(pathOrDir string, isDir bool) ([]CodegenTask, error) {
 			return nil, err
 		}
 
-		tasks = append(tasks, CodegenTask{
+		tasks = append(tasks, SqlcCodegenTask{
 			CfgDir: dir,
 			Schema: schemaBuff,
 			Joins:  joinsBuff,

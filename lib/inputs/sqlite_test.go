@@ -1,14 +1,14 @@
-package sqlite
+package inputs
 
 import (
-	"sqlc-joins-gen/lib/schema"
+	"sqlc-joins-gen/lib/types"
 	"sqlc-joins-gen/lib/utils"
 	"testing"
 )
 
 type TestSchema struct {
 	Source []byte
-	Schema schema.Schema
+	Schema types.Schema
 }
 
 var TESTING_SCHEMAS = []TestSchema{
@@ -53,7 +53,7 @@ create table BookMetadata (
 	foreign key (bookId) references Book(id)
 );
 `),
-		Schema: schema.TESTING_SCHEMAS[0],
+		Schema: types.TESTING_SCHEMAS[0],
 	},
 	{
 		Source: []byte(`
@@ -169,13 +169,13 @@ create table MoodleAssignment (
         on delete cascade
 );`,
 		),
-		Schema: schema.TESTING_SCHEMAS[1],
+		Schema: types.TESTING_SCHEMAS[1],
 	},
 }
 
 func TestParseSchema(t *testing.T) {
 	for _, test := range TESTING_SCHEMAS {
-		result, err := ParseSchema([]byte(test.Source))
+		result, err := ParseSqliteSchema([]byte(test.Source))
 		if err != nil {
 			t.Fatal("failed to construct schema:", err)
 		}

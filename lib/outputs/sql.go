@@ -1,4 +1,4 @@
-package gen
+package outputs
 
 // the part of a join after the `ON` keyword
 type SqlJoinOn struct {

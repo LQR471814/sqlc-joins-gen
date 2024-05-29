@@ -4,34 +4,10 @@ import (
 	"flag"
 	"log/slog"
 	"os"
-	"sqlc-joins-gen/lib/gen"
-	"sqlc-joins-gen/lib/querycfg"
-	"sqlc-joins-gen/lib/sqlc"
-	"sqlc-joins-gen/lib/sqlite"
-
-	"github.com/titanous/json5"
+	"path"
+	"sqlc-joins-gen/lib/inputs"
+	"sqlc-joins-gen/lib/outputs"
 )
-
-func generate(task sqlc.CodegenTask) error {
-	schema, err := sqlite.ParseSchema(task.Schema)
-	if err != nil {
-		return err
-	}
-
-	var methods []querycfg.Method
-	err = json5.Unmarshal(task.Joins, &methods)
-	if err != nil {
-		return err
-	}
-
-	fromSchema := gen.GenManager{Schema: schema}
-	return fromSchema.Generate(
-		task,
-		gen.SqliteGenerator{},
-		gen.GolangGenerator{},
-		methods,
-	)
-}
 
 func main() {
 	sqlcFile := flag.String("config", "", "path to the sqlc.yaml config file")
@@ -48,14 +24,19 @@ func main() {
 		isDir = false
 	}
 
-	tasks, err := sqlc.LoadConfig(pathOrDir, isDir)
+	tasks, err := inputs.LoadSqlcConfig(pathOrDir, isDir)
 	if err != nil {
 		slog.Error("failed to read sqlc config", "err", err)
 		return
 	}
 
+	sqlgen := outputs.SqliteGenerator{}
 	for _, task := range tasks {
-		err = generate(task)
+		plgen := outputs.GolangGenerator{
+			PackageName: task.Gen.Go.Package,
+			PackagePath: path.Join(task.CfgDir, task.Gen.Go.Out),
+		}
+		err = generate(task, sqlgen, plgen)
 		if err != nil {
 			slog.Error("failed to execute sqlc task", "err", err)
 		}

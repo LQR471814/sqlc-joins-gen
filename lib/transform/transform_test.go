@@ -1,64 +1,64 @@
-package gen
+package transform
 
 import (
-	"sqlc-joins-gen/lib/querycfg"
-	"sqlc-joins-gen/lib/schema"
+	"sqlc-joins-gen/lib/outputs"
+	"sqlc-joins-gen/lib/types"
 	"sqlc-joins-gen/lib/utils"
 	"testing"
 )
 
 func TestIsUniqueFkey(t *testing.T) {
 	testCases := []struct {
-		schema   schema.Schema
-		table    schema.Table
-		fkey     schema.ForeignKey
+		schema   types.Schema
+		table    *types.Table
+		fkey     types.ForeignKey
 		expected bool
 	}{
 		{
-			schema:   schema.TESTING_SCHEMAS[0],
-			table:    schema.TESTING_SCHEMAS[0].Tables[1],
-			fkey:     schema.TESTING_SCHEMAS[0].Tables[1].ForeignKeys[0],
+			schema:   types.TESTING_SCHEMAS[0],
+			table:    types.TESTING_SCHEMAS[0].Tables[1],
+			fkey:     types.TESTING_SCHEMAS[0].Tables[1].ForeignKeys[0],
 			expected: false,
 		},
 		{
-			schema:   schema.TESTING_SCHEMAS[0],
-			table:    schema.TESTING_SCHEMAS[0].Tables[3],
-			fkey:     schema.TESTING_SCHEMAS[0].Tables[3].ForeignKeys[0],
+			schema:   types.TESTING_SCHEMAS[0],
+			table:    types.TESTING_SCHEMAS[0].Tables[3],
+			fkey:     types.TESTING_SCHEMAS[0].Tables[3].ForeignKeys[0],
 			expected: false,
 		},
 		{
-			schema:   schema.TESTING_SCHEMAS[0],
-			table:    schema.TESTING_SCHEMAS[0].Tables[3],
-			fkey:     schema.TESTING_SCHEMAS[0].Tables[3].ForeignKeys[1],
+			schema:   types.TESTING_SCHEMAS[0],
+			table:    types.TESTING_SCHEMAS[0].Tables[3],
+			fkey:     types.TESTING_SCHEMAS[0].Tables[3].ForeignKeys[1],
 			expected: false,
 		},
 		{
-			schema:   schema.TESTING_SCHEMAS[0],
-			table:    schema.TESTING_SCHEMAS[0].Tables[4],
-			fkey:     schema.TESTING_SCHEMAS[0].Tables[4].ForeignKeys[0],
+			schema:   types.TESTING_SCHEMAS[0],
+			table:    types.TESTING_SCHEMAS[0].Tables[4],
+			fkey:     types.TESTING_SCHEMAS[0].Tables[4].ForeignKeys[0],
 			expected: true,
 		},
 		{
-			schema:   schema.TESTING_SCHEMAS[1],
-			table:    schema.TESTING_SCHEMAS[1].Tables[8],
-			fkey:     schema.TESTING_SCHEMAS[1].Tables[8].ForeignKeys[0],
+			schema:   types.TESTING_SCHEMAS[1],
+			table:    types.TESTING_SCHEMAS[1].Tables[8],
+			fkey:     types.TESTING_SCHEMAS[1].Tables[8].ForeignKeys[0],
 			expected: false,
 		},
 		{
-			schema:   schema.TESTING_SCHEMAS[1],
-			table:    schema.TESTING_SCHEMAS[1].Tables[5],
-			fkey:     schema.TESTING_SCHEMAS[1].Tables[5].ForeignKeys[0],
+			schema:   types.TESTING_SCHEMAS[1],
+			table:    types.TESTING_SCHEMAS[1].Tables[5],
+			fkey:     types.TESTING_SCHEMAS[1].Tables[5].ForeignKeys[0],
 			expected: false,
 		},
 	}
 
 	for _, test := range testCases {
-		g := GenManager{Schema: test.schema}
+		g := FromSchema{Schema: test.schema}
 		result := g.isUniqueFkey(test.table, test.fkey)
 		diff := utils.DiffUnordered(test.expected, result)
 		if diff != "" {
 			t.Fatalf(
-				"got different result than expected:\n%s\ntable: %s\nfkey target: %d",
+				"got different result than expected:\n%s\ntable: %s\nfkey target: %p",
 				diff, test.table.Name, test.fkey.TargetTable,
 			)
 		}
@@ -66,30 +66,53 @@ func TestIsUniqueFkey(t *testing.T) {
 }
 
 func TestGetSelectFields(t *testing.T) {
-	schemas := schema.TESTING_SCHEMAS
+	schemas := types.TESTING_SCHEMAS
+
+	authorTable := schemas[0].MustFindTable("Author")
+	bookTable := schemas[0].MustFindTable("Book")
+	bookAuthorRelevanceRatingTable := schemas[0].MustFindTable("BookAuthorRelevanceRating")
+
 	testCases := []struct {
-		schema      schema.Schema
-		parentTable string
-		query       querycfg.Query
-		expected    []string
+		schema   types.Schema
+		table    *types.Table
+		query    types.Query
+		expected []string
 	}{
 		{
-			schema:      schemas[0],
-			parentTable: "Author",
-			query: querycfg.Query{
-				Columns: map[string]bool{
-					"name": true,
+			schema: schemas[0],
+			table:  authorTable,
+			query: types.Query{
+				Columns: []types.QueryColumn{
+					{
+						Column:  authorTable.FindColumn("name"),
+						Enabled: true,
+					},
 				},
-				With: map[string]querycfg.Query{
-					"Book": {
-						Columns: map[string]bool{
-							"id":   true,
-							"name": true,
+				With: []types.QueryWith{
+					{
+						Table: bookTable,
+						Query: types.Query{
+							Columns: []types.QueryColumn{
+								{
+									Column:  bookTable.FindColumn("id"),
+									Enabled: true,
+								},
+								{
+									Column:  bookTable.FindColumn("name"),
+									Enabled: true,
+								},
+							},
 						},
 					},
-					"BookAuthorRelevanceRating": {
-						Columns: map[string]bool{
-							"rating": false,
+					{
+						Table: bookAuthorRelevanceRatingTable,
+						Query: types.Query{
+							Columns: []types.QueryColumn{
+								{
+									Column:  bookAuthorRelevanceRatingTable.FindColumn("rating"),
+									Enabled: false,
+								},
+							},
 						},
 					},
 				},
@@ -106,9 +129,9 @@ func TestGetSelectFields(t *testing.T) {
 			},
 		},
 		{
-			schema:      schemas[1],
-			parentTable: "User",
-			query:       querycfg.TESTING_METHODS[0].Query,
+			schema: schemas[1],
+			table:  schemas[1].MustFindTable("User"),
+			query:  types.TESTING_METHODS[0].Query,
 			expected: []string{
 				"User_email",
 				"User_gpa",
@@ -150,13 +173,9 @@ func TestGetSelectFields(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		fromSchema := GenManager{Schema: test.schema}
-		var fields []SqlSelectField
-		fromSchema.getSelectFields(
-			test.query,
-			test.schema.MustFindTable(test.parentTable),
-			&fields,
-		)
+		fromSchema := FromSchema{Schema: test.schema}
+		var fields []outputs.SqlSelectField
+		fromSchema.getSelectFields(test.query, test.table, &fields)
 
 		result := make([]string, len(fields))
 		for i, f := range fields {
@@ -171,20 +190,20 @@ func TestGetSelectFields(t *testing.T) {
 }
 
 func TestGetJoinLine(t *testing.T) {
-	schemas := schema.TESTING_SCHEMAS
+	schemas := types.TESTING_SCHEMAS
 	testCases := []struct {
-		schema   schema.Schema
-		source   int
-		target   int
-		expected SqlJoinLine
+		schema   types.Schema
+		source   *types.Table
+		target   *types.Table
+		expected outputs.SqlJoinLine
 	}{
 		{
 			schema: schemas[0],
-			source: 0,
-			target: 1,
-			expected: SqlJoinLine{
+			source: schemas[0].MustFindTable("Author"),
+			target: schemas[0].MustFindTable("Book"),
+			expected: outputs.SqlJoinLine{
 				Table: "Book",
-				On: []SqlJoinOn{
+				On: []outputs.SqlJoinOn{
 					{
 						SourceTable: "Book",
 						SourceAttr:  "authorId",
@@ -196,11 +215,11 @@ func TestGetJoinLine(t *testing.T) {
 		},
 		{
 			schema: schemas[0],
-			source: 1,
-			target: 2,
-			expected: SqlJoinLine{
+			source: schemas[0].MustFindTable("Book"),
+			target: schemas[0].MustFindTable("BookAuthorRelevance"),
+			expected: outputs.SqlJoinLine{
 				Table: "BookAuthorRelevance",
-				On: []SqlJoinOn{
+				On: []outputs.SqlJoinOn{
 					{
 						SourceTable: "BookAuthorRelevance",
 						SourceAttr:  "bookId",
@@ -212,11 +231,11 @@ func TestGetJoinLine(t *testing.T) {
 		},
 		{
 			schema: schemas[0],
-			source: 2,
-			target: 3,
-			expected: SqlJoinLine{
+			source: schemas[0].MustFindTable("BookAuthorRelevance"),
+			target: schemas[0].MustFindTable("BookAuthorRelevanceRating"),
+			expected: outputs.SqlJoinLine{
 				Table: "BookAuthorRelevanceRating",
-				On: []SqlJoinOn{
+				On: []outputs.SqlJoinOn{
 					{
 						SourceTable: "BookAuthorRelevanceRating",
 						SourceAttr:  "authorId",
@@ -234,11 +253,11 @@ func TestGetJoinLine(t *testing.T) {
 		},
 		{
 			schema: schemas[0],
-			source: 0,
-			target: 3,
-			expected: SqlJoinLine{
+			source: schemas[0].MustFindTable("Author"),
+			target: schemas[0].MustFindTable("BookAuthorRelevanceRating"),
+			expected: outputs.SqlJoinLine{
 				Table: "BookAuthorRelevanceRating",
-				On: []SqlJoinOn{
+				On: []outputs.SqlJoinOn{
 					{
 						SourceTable: "BookAuthorRelevanceRating",
 						SourceAttr:  "ratedBy",
@@ -251,7 +270,7 @@ func TestGetJoinLine(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		generator := GenManager{Schema: test.schema}
+		generator := FromSchema{Schema: test.schema}
 		result := generator.getJoinLine(test.source, test.target)
 		diff := utils.DiffUnordered(test.expected, result)
 		if diff != "" {
@@ -264,53 +283,62 @@ func TestGetJoinLine(t *testing.T) {
 }
 
 func TestGetRowDef(t *testing.T) {
-	schemas := schema.TESTING_SCHEMAS
+	schemas := types.TESTING_SCHEMAS
 	testCases := []struct {
-		schema   schema.Schema
-		method   querycfg.Method
-		expected []PlRowDef
+		schema   types.Schema
+		method   types.Method
+		expected []*outputs.PlRowDef
 	}{
 		{
 			schema: schemas[0],
-			method: querycfg.Method{
-				Table: "Book",
+			method: types.Method{
+				Table: schemas[0].MustFindTable("Book"),
 				Name:  "getBooksAndAuthor",
-				Query: querycfg.Query{
-					Columns: map[string]bool{
-						"authorId": true,
+				Query: types.Query{
+					Columns: []types.QueryColumn{
+						{
+							Column: schemas[0].MustFindTable("Book").FindColumn("authorId"),
+							Enabled: true,
+						},
 					},
-					With: map[string]querycfg.Query{
-						"Author": {
-							Columns: map[string]bool{
-								"name": false,
+					With: []types.QueryWith{
+						{
+							Table: schemas[0].MustFindTable("Author"),
+							Query: types.Query{
+								Columns: []types.QueryColumn{
+									{
+										Column: schemas[0].MustFindTable("Author").FindColumn("name"),
+										Enabled: false,
+									},
+								},
 							},
 						},
 					},
 				},
 			},
-			expected: []PlRowDef{
+			expected: []*outputs.PlRowDef{
 				// index: 0
 				{
 					DefName:   "getBooksAndAuthor",
 					TableName: "Book",
-					Fields: []PlFieldDef{
+					Fields: []*outputs.PlFieldDef{
 						{
 							Name:           "authorId",
 							TableFieldName: "authorId",
-							Type: PlType{
-								Primitive: INT,
+							Type: outputs.PlType{
+								Primitive: outputs.INT,
 							},
 						},
 						{
 							Name:           "id",
 							TableFieldName: "id",
-							Type: PlType{
-								Primitive: INT,
+							Type: outputs.PlType{
+								Primitive: outputs.INT,
 							},
 						},
 						{
 							Name: "Author",
-							Type: PlType{
+							Type: outputs.PlType{
 								IsRowDef: true,
 								Array:    false,
 								RowDef:   1,
@@ -322,12 +350,12 @@ func TestGetRowDef(t *testing.T) {
 				{
 					DefName:   "getBooksAndAuthor0",
 					TableName: "Author",
-					Fields: []PlFieldDef{
+					Fields: []*outputs.PlFieldDef{
 						{
 							Name:           "id",
 							TableFieldName: "id",
-							Type: PlType{
-								Primitive: INT,
+							Type: outputs.PlType{
+								Primitive: outputs.INT,
 							},
 						},
 					},
@@ -336,37 +364,39 @@ func TestGetRowDef(t *testing.T) {
 		},
 		{
 			schema: schemas[0],
-			method: querycfg.Method{
-				Table: "Author",
+			method: types.Method{
+				Table: schemas[0].MustFindTable("Author"),
 				Name:  "getAuthorAndBooks",
-				Query: querycfg.Query{
-					With: map[string]querycfg.Query{
-						"Book": {},
+				Query: types.Query{
+					With: []types.QueryWith{
+						{
+							Table: schemas[0].MustFindTable("Book"),
+						},
 					},
 				},
 			},
-			expected: []PlRowDef{
+			expected: []*outputs.PlRowDef{
 				{
 					DefName:   "getAuthorAndBooks",
 					TableName: "Author",
-					Fields: []PlFieldDef{
+					Fields: []*outputs.PlFieldDef{
 						{
 							Name:           "id",
 							TableFieldName: "id",
-							Type: PlType{
-								Primitive: INT,
+							Type: outputs.PlType{
+								Primitive: outputs.INT,
 							},
 						},
 						{
 							Name:           "name",
 							TableFieldName: "name",
-							Type: PlType{
-								Primitive: STRING,
+							Type: outputs.PlType{
+								Primitive: outputs.STRING,
 							},
 						},
 						{
 							Name: "Book",
-							Type: PlType{
+							Type: outputs.PlType{
 								Array:    true,
 								IsRowDef: true,
 								RowDef:   1,
@@ -377,26 +407,26 @@ func TestGetRowDef(t *testing.T) {
 				{
 					DefName:   "getAuthorAndBooks0",
 					TableName: "Book",
-					Fields: []PlFieldDef{
+					Fields: []*outputs.PlFieldDef{
 						{
 							Name:           "id",
 							TableFieldName: "id",
-							Type: PlType{
-								Primitive: INT,
+							Type: outputs.PlType{
+								Primitive: outputs.INT,
 							},
 						},
 						{
 							Name:           "authorId",
 							TableFieldName: "authorId",
-							Type: PlType{
-								Primitive: INT,
+							Type: outputs.PlType{
+								Primitive: outputs.INT,
 							},
 						},
 						{
 							Name:           "name",
 							TableFieldName: "name",
-							Type: PlType{
-								Primitive: STRING,
+							Type: outputs.PlType{
+								Primitive: outputs.STRING,
 							},
 						},
 					},
@@ -404,27 +434,27 @@ func TestGetRowDef(t *testing.T) {
 			},
 		},
 		{
-			schema: schema.TESTING_SCHEMAS[1],
-			method: querycfg.TESTING_METHODS[0],
-			expected: []PlRowDef{
+			schema: types.TESTING_SCHEMAS[1],
+			method: types.TESTING_METHODS[0],
+			expected: []*outputs.PlRowDef{
 				// index: 0
 				{
 					TableName: "User",
 					DefName:   "getUserData",
-					Fields: []PlFieldDef{
+					Fields: []*outputs.PlFieldDef{
 						{
 							TableFieldName: "gpa",
 							Name:           "gpa",
-							Type:           PlType{Primitive: FLOAT},
+							Type:           outputs.PlType{Primitive: outputs.FLOAT},
 						},
 						{
 							TableFieldName: "email",
 							Name:           "email",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							Name: "PSUserCourse",
-							Type: PlType{
+							Type: outputs.PlType{
 								IsRowDef: true,
 								Array:    true,
 								RowDef:   1,
@@ -432,7 +462,7 @@ func TestGetRowDef(t *testing.T) {
 						},
 						{
 							Name: "MoodleUserCourse",
-							Type: PlType{
+							Type: outputs.PlType{
 								IsRowDef: true,
 								Array:    true,
 								RowDef:   2,
@@ -444,20 +474,20 @@ func TestGetRowDef(t *testing.T) {
 				{
 					TableName: "PSUserCourse",
 					DefName:   "getUserData0",
-					Fields: []PlFieldDef{
+					Fields: []*outputs.PlFieldDef{
 						{
 							TableFieldName: "courseName",
 							Name:           "courseName",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "userEmail",
 							Name:           "userEmail",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							Name: "PSUserAssignment",
-							Type: PlType{
+							Type: outputs.PlType{
 								IsRowDef: true,
 								Array:    true,
 								RowDef:   3,
@@ -465,7 +495,7 @@ func TestGetRowDef(t *testing.T) {
 						},
 						{
 							Name: "PSUserMeeting",
-							Type: PlType{
+							Type: outputs.PlType{
 								IsRowDef: true,
 								Array:    true,
 								RowDef:   4,
@@ -477,20 +507,20 @@ func TestGetRowDef(t *testing.T) {
 				{
 					TableName: "MoodleUserCourse",
 					DefName:   "getUserData1",
-					Fields: []PlFieldDef{
+					Fields: []*outputs.PlFieldDef{
 						{
 							TableFieldName: "courseId",
 							Name:           "courseId",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "userEmail",
 							Name:           "userEmail",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							Name: "MoodleCourse",
-							Type: PlType{
+							Type: outputs.PlType{
 								IsRowDef: true,
 								RowDef:   5,
 							},
@@ -501,45 +531,45 @@ func TestGetRowDef(t *testing.T) {
 				{
 					TableName: "PSUserAssignment",
 					DefName:   "getUserData00",
-					Fields: []PlFieldDef{
+					Fields: []*outputs.PlFieldDef{
 						{
 							TableFieldName: "userEmail",
 							Name:           "userEmail",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "assignmentName",
 							Name:           "assignmentName",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "courseName",
 							Name:           "courseName",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "missing",
 							Name:           "missing",
-							Type:           PlType{Primitive: INT},
+							Type:           outputs.PlType{Primitive: outputs.INT},
 						},
 						{
 							TableFieldName: "collected",
 							Name:           "collected",
-							Type:           PlType{Primitive: INT},
+							Type:           outputs.PlType{Primitive: outputs.INT},
 						},
 						{
 							TableFieldName: "scored",
 							Name:           "scored",
-							Type:           PlType{Primitive: FLOAT, Nullable: true},
+							Type:           outputs.PlType{Primitive: outputs.FLOAT, Nullable: true},
 						},
 						{
 							TableFieldName: "total",
 							Name:           "total",
-							Type:           PlType{Primitive: FLOAT, Nullable: true},
+							Type:           outputs.PlType{Primitive: outputs.FLOAT, Nullable: true},
 						},
 						{
 							Name: "PSAssignment",
-							Type: PlType{
+							Type: outputs.PlType{
 								IsRowDef: true,
 								RowDef:   6,
 							},
@@ -550,26 +580,26 @@ func TestGetRowDef(t *testing.T) {
 				{
 					TableName: "PSUserMeeting",
 					DefName:   "getUserData01",
-					Fields: []PlFieldDef{
+					Fields: []*outputs.PlFieldDef{
 						{
 							TableFieldName: "userEmail",
 							Name:           "userEmail",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "courseName",
 							Name:           "courseName",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "startTime",
 							Name:           "startTime",
-							Type:           PlType{Primitive: INT},
+							Type:           outputs.PlType{Primitive: outputs.INT},
 						},
 						{
 							TableFieldName: "endTime",
 							Name:           "endTime",
-							Type:           PlType{Primitive: INT},
+							Type:           outputs.PlType{Primitive: outputs.INT},
 						},
 					},
 				},
@@ -577,30 +607,30 @@ func TestGetRowDef(t *testing.T) {
 				{
 					TableName: "MoodleCourse",
 					DefName:   "getUserData10",
-					Fields: []PlFieldDef{
+					Fields: []*outputs.PlFieldDef{
 						{
 							TableFieldName: "id",
 							Name:           "id",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "courseName",
 							Name:           "courseName",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "teacher",
 							Name:           "teacher",
-							Type:           PlType{Primitive: STRING, Nullable: true},
+							Type:           outputs.PlType{Primitive: outputs.STRING, Nullable: true},
 						},
 						{
 							TableFieldName: "zoom",
 							Name:           "zoom",
-							Type:           PlType{Primitive: INT, Nullable: true},
+							Type:           outputs.PlType{Primitive: outputs.STRING, Nullable: true},
 						},
 						{
 							Name: "MoodlePage",
-							Type: PlType{
+							Type: outputs.PlType{
 								IsRowDef: true,
 								Array:    true,
 								RowDef:   7,
@@ -608,7 +638,7 @@ func TestGetRowDef(t *testing.T) {
 						},
 						{
 							Name: "MoodleAssignment",
-							Type: PlType{
+							Type: outputs.PlType{
 								IsRowDef: true,
 								Array:    true,
 								RowDef:   8,
@@ -620,36 +650,36 @@ func TestGetRowDef(t *testing.T) {
 				{
 					TableName: "PSAssignment",
 					DefName:   "getUserData000",
-					Fields: []PlFieldDef{
+					Fields: []*outputs.PlFieldDef{
 						{
 							TableFieldName: "name",
 							Name:           "name",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "courseName",
 							Name:           "courseName",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "assignmentTypeName",
 							Name:           "assignmentTypeName",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "description",
 							Name:           "description",
-							Type:           PlType{Primitive: STRING, Nullable: true},
+							Type:           outputs.PlType{Primitive: outputs.STRING, Nullable: true},
 						},
 						{
 							TableFieldName: "duedate",
 							Name:           "duedate",
-							Type:           PlType{Primitive: INT},
+							Type:           outputs.PlType{Primitive: outputs.INT},
 						},
 						{
 							TableFieldName: "category",
 							Name:           "category",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 					},
 				},
@@ -657,21 +687,21 @@ func TestGetRowDef(t *testing.T) {
 				{
 					TableName: "MoodlePage",
 					DefName:   "getUserData100",
-					Fields: []PlFieldDef{
+					Fields: []*outputs.PlFieldDef{
 						{
 							TableFieldName: "courseId",
 							Name:           "courseId",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "url",
 							Name:           "url",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "content",
 							Name:           "content",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 					},
 				},
@@ -679,31 +709,31 @@ func TestGetRowDef(t *testing.T) {
 				{
 					TableName: "MoodleAssignment",
 					DefName:   "getUserData101",
-					Fields: []PlFieldDef{
+					Fields: []*outputs.PlFieldDef{
 						{
 							TableFieldName: "name",
 							Name:           "name",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "courseId",
 							Name:           "courseId",
-							Type:           PlType{Primitive: STRING},
+							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
 							TableFieldName: "description",
 							Name:           "description",
-							Type:           PlType{Primitive: STRING, Nullable: true},
+							Type:           outputs.PlType{Primitive: outputs.STRING, Nullable: true},
 						},
 						{
 							TableFieldName: "duedate",
 							Name:           "duedate",
-							Type:           PlType{Primitive: INT},
+							Type:           outputs.PlType{Primitive: outputs.INT},
 						},
 						{
 							TableFieldName: "category",
 							Name:           "category",
-							Type:           PlType{Primitive: STRING, Nullable: true},
+							Type:           outputs.PlType{Primitive: outputs.STRING, Nullable: true},
 						},
 					},
 				},
@@ -712,9 +742,9 @@ func TestGetRowDef(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		generator := GenManager{Schema: test.schema}
-		var result []PlRowDef
-		generator.getRowDefs(test.method, &result)
+		generator := FromSchema{Schema: test.schema}
+		var result []*outputs.PlRowDef
+		generator.GetRowDefs(test.method, &result)
 
 		diff := utils.DiffUnordered(test.expected, result)
 

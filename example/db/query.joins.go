@@ -12,22 +12,22 @@ type GetUserData struct {
 	Gpa              float64
 	Email            string
 	PSUserCourse     []GetUserData0
-	MoodleUserCourse []GetUserData0
+	MoodleUserCourse []GetUserData1
 }
 
 // Table: PSUserCourse
 type GetUserData0 struct {
 	CourseName       string
 	UserEmail        string
-	PSUserAssignment []GetUserData1
-	PSUserMeeting    []GetUserData1
+	PSUserAssignment []GetUserData00
+	PSUserMeeting    []GetUserData01
 }
 
 // Table: MoodleUserCourse
 type GetUserData1 struct {
 	CourseId     string
 	UserEmail    string
-	MoodleCourse GetUserData00
+	MoodleCourse GetUserData10
 }
 
 // Table: PSUserAssignment
@@ -39,7 +39,7 @@ type GetUserData00 struct {
 	Collected      int
 	Scored         sql.NullFloat64
 	Total          sql.NullFloat64
-	PSAssignment   GetUserData01
+	PSAssignment   GetUserData000
 }
 
 // Table: PSUserMeeting
@@ -56,8 +56,8 @@ type GetUserData10 struct {
 	CourseName       string
 	Teacher          sql.NullString
 	Zoom             sql.NullString
-	MoodlePage       []GetUserData000
-	MoodleAssignment []GetUserData000
+	MoodlePage       []GetUserData100
+	MoodleAssignment []GetUserData101
 }
 
 // Table: PSAssignment
@@ -91,10 +91,6 @@ User.gpa as User_gpa
 User.email as User_email
 PSUserCourse.courseName as PSUserCourse_courseName
 PSUserCourse.userEmail as PSUserCourse_userEmail
-PSUserMeeting.userEmail as PSUserMeeting_userEmail
-PSUserMeeting.courseName as PSUserMeeting_courseName
-PSUserMeeting.startTime as PSUserMeeting_startTime
-PSUserMeeting.endTime as PSUserMeeting_endTime
 PSUserAssignment.userEmail as PSUserAssignment_userEmail
 PSUserAssignment.assignmentName as PSUserAssignment_assignmentName
 PSUserAssignment.courseName as PSUserAssignment_courseName
@@ -108,6 +104,10 @@ PSAssignment.assignmentTypeName as PSAssignment_assignmentTypeName
 PSAssignment.description as PSAssignment_description
 PSAssignment.duedate as PSAssignment_duedate
 PSAssignment.category as PSAssignment_category
+PSUserMeeting.userEmail as PSUserMeeting_userEmail
+PSUserMeeting.courseName as PSUserMeeting_courseName
+PSUserMeeting.startTime as PSUserMeeting_startTime
+PSUserMeeting.endTime as PSUserMeeting_endTime
 MoodleUserCourse.courseId as MoodleUserCourse_courseId
 MoodleUserCourse.userEmail as MoodleUserCourse_userEmail
 MoodleCourse.id as MoodleCourse_id
@@ -129,28 +129,10 @@ inner join PSAssignment on PSUserAssignment.assignmentName = PSAssignment.name a
 inner join PSUserMeeting on PSUserMeeting.userEmail = PSUserCourse.userEmail and PSUserMeeting.courseName = PSUserCourse.courseName
 inner join MoodleUserCourse on MoodleUserCourse.userEmail = User.email
 inner join MoodleCourse on MoodleUserCourse.courseId = MoodleCourse.id
-inner join MoodleAssignment on MoodleAssignment.courseId = MoodleCourse.id
 inner join MoodlePage on MoodlePage.courseId = MoodleCourse.id
+inner join MoodleAssignment on MoodleAssignment.courseId = MoodleCourse.id
 where User.email = ?
 order by
-MoodlePage.url asc,
-MoodlePage.courseId asc,
-MoodleAssignment.name asc,
-MoodleAssignment.courseId asc,
-MoodleCourse.id asc,
-MoodleUserCourse.courseId asc,
-MoodleUserCourse.userEmail asc,
-PSAssignment.name asc,
-PSAssignment.courseName asc,
-PSUserAssignment.userEmail asc,
-PSUserAssignment.assignmentName asc,
-PSUserAssignment.courseName asc,
-PSUserMeeting.userEmail asc,
-PSUserMeeting.courseName asc,
-PSUserMeeting.startTime asc,
-PSUserCourse.userEmail asc,
-PSUserCourse.courseName asc,
-User.email asc,
 User.gpa asc`
 
 func (q *Queries) GetUserData(ctx context.Context, args any) ([]GetUserData, error) {
@@ -186,8 +168,6 @@ func (q *Queries) GetUserData(ctx context.Context, args any) ([]GetUserData, err
 			&GetUserData.Email,
 			&GetUserData0.CourseName,
 			&GetUserData0.UserEmail,
-			&GetUserData1.CourseId,
-			&GetUserData1.UserEmail,
 			&GetUserData00.UserEmail,
 			&GetUserData00.AssignmentName,
 			&GetUserData00.CourseName,
@@ -195,51 +175,30 @@ func (q *Queries) GetUserData(ctx context.Context, args any) ([]GetUserData, err
 			&GetUserData00.Collected,
 			&GetUserData00.Scored,
 			&GetUserData00.Total,
+			&GetUserData000.Name,
+			&GetUserData000.CourseName,
+			&GetUserData000.AssignmentTypeName,
+			&GetUserData000.Description,
+			&GetUserData000.Duedate,
+			&GetUserData000.Category,
 			&GetUserData01.UserEmail,
 			&GetUserData01.CourseName,
 			&GetUserData01.StartTime,
 			&GetUserData01.EndTime,
 			&GetUserData1.CourseId,
 			&GetUserData1.UserEmail,
-			&GetUserData00.UserEmail,
-			&GetUserData00.AssignmentName,
-			&GetUserData00.CourseName,
-			&GetUserData00.Missing,
-			&GetUserData00.Collected,
-			&GetUserData00.Scored,
-			&GetUserData00.Total,
-			&GetUserData01.UserEmail,
-			&GetUserData01.CourseName,
-			&GetUserData01.StartTime,
-			&GetUserData01.EndTime,
-			&GetUserData0.CourseName,
-			&GetUserData0.UserEmail,
-			&GetUserData1.CourseId,
-			&GetUserData1.UserEmail,
-			&GetUserData00.UserEmail,
-			&GetUserData00.AssignmentName,
-			&GetUserData00.CourseName,
-			&GetUserData00.Missing,
-			&GetUserData00.Collected,
-			&GetUserData00.Scored,
-			&GetUserData00.Total,
-			&GetUserData01.UserEmail,
-			&GetUserData01.CourseName,
-			&GetUserData01.StartTime,
-			&GetUserData01.EndTime,
-			&GetUserData1.CourseId,
-			&GetUserData1.UserEmail,
-			&GetUserData00.UserEmail,
-			&GetUserData00.AssignmentName,
-			&GetUserData00.CourseName,
-			&GetUserData00.Missing,
-			&GetUserData00.Collected,
-			&GetUserData00.Scored,
-			&GetUserData00.Total,
-			&GetUserData01.UserEmail,
-			&GetUserData01.CourseName,
-			&GetUserData01.StartTime,
-			&GetUserData01.EndTime,
+			&GetUserData10.Id,
+			&GetUserData10.CourseName,
+			&GetUserData10.Teacher,
+			&GetUserData10.Zoom,
+			&GetUserData100.CourseId,
+			&GetUserData100.Url,
+			&GetUserData100.Content,
+			&GetUserData101.Name,
+			&GetUserData101.CourseId,
+			&GetUserData101.Description,
+			&GetUserData101.Duedate,
+			&GetUserData101.Category,
 		)
 		if err != nil {
 			return nil, err

@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"golang.org/x/exp/constraints"
 )
 
 func Capitalize(text string) string {
@@ -17,24 +18,35 @@ func Capitalize(text string) string {
 	return strings.ToUpper(text[0:1]) + text[1:]
 }
 
-func lessStr(a, b string) bool {
-	return a < b
-}
-func lessInt(a, b int) bool {
-	return a < b
-}
-func lessFloat(a, b float32) bool {
+func less[T constraints.Ordered](a, b T) bool {
 	return a < b
 }
 
+func primitive() []cmp.Option {
+	return []cmp.Option{
+		cmpopts.SortSlices(less[string]),
+		cmpopts.SortSlices(less[int]),
+		cmpopts.SortSlices(less[int32]),
+		cmpopts.SortSlices(less[int64]),
+		cmpopts.SortSlices(less[uint]),
+		cmpopts.SortSlices(less[uint32]),
+		cmpopts.SortSlices(less[uint64]),
+		cmpopts.SortSlices(less[float32]),
+		cmpopts.SortSlices(less[float64]),
+	}
+}
+
+var sorts = primitive()
+
+func AddCustomSort[T any](newSorts... func(val T) string) {
+	for _, fn := range newSorts {
+		res := func (a, b T) bool {
+			return fn(a) < fn(b)
+		}
+		sorts = append(sorts, cmpopts.SortSlices(res))
+	}
+}
+
 func DiffUnordered(expected, got any) string {
-	return cmp.Diff(
-		expected, got,
-		cmpopts.SortSlices(lessStr),
-		cmpopts.SortSlices(lessInt),
-		cmpopts.SortSlices(lessFloat),
-		cmpopts.SortMaps(lessStr),
-		cmpopts.SortMaps(lessInt),
-		cmpopts.SortMaps(lessFloat),
-	)
+	return cmp.Diff(expected, got, sorts...)
 }

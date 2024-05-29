@@ -1,10 +1,4 @@
-package gen
-
-import (
-	"fmt"
-	"sqlc-joins-gen/lib/schema"
-	"sqlc-joins-gen/lib/sqlc"
-)
+package outputs
 
 // an enum of various common types in various programming languages
 type PlPrimitive = int
@@ -15,19 +9,6 @@ const (
 	STRING
 	BOOL
 )
-
-// convert an sql column type into a primitive type
-func SqlColumnTypeToPlType(t schema.ColumnType) PlPrimitive {
-	switch t {
-	case schema.INT:
-		return INT
-	case schema.TEXT:
-		return STRING
-	case schema.REAL:
-		return FLOAT
-	}
-	panic(fmt.Sprintf("unknown column type '%s'", t))
-}
 
 // TODO: make PlType not a recursive structure
 
@@ -55,20 +36,20 @@ type PlRowDef struct {
 	TableName string
 
 	DefName string
-	Fields  []PlFieldDef
+	Fields  []*PlFieldDef
 }
 
 // refers to a Table and a column in it
 type PlScanEntry struct {
-	RowDefIdx int
-	FieldIdx  int
+	RowDef *PlRowDef
+	Field  *PlFieldDef
 }
 
 // refers to a collection of queries
 type PlMethodDef struct {
 	MethodName string
-	RowDefs    []PlRowDef
-	RootDef    int
+	RowDefs    []*PlRowDef
+	RootDef    *PlRowDef
 	// defines the order of columns when scanning rows in
 	ScanOrder []PlScanEntry
 	Sql       string
@@ -76,16 +57,11 @@ type PlMethodDef struct {
 
 // represents a single file in the target language
 type PlScript struct {
-	Methods []PlMethodDef
-}
-
-type PlScriptOutput struct {
-	Path     string
-	Contents []byte
+	Methods []*PlMethodDef
 }
 
 // note: PL stands for "programming language"
 // interface all programming language generators must fulfill
 type PlGenerator interface {
-	Script(cfg sqlc.CodegenTask, script PlScript) []PlScriptOutput
+	Generate(script PlScript) error
 }
