@@ -71,9 +71,11 @@ func (s FromSchema) getColumns(query types.Query, table *types.Table) []*types.C
 
 func (s FromSchema) GetRowDefs(method types.Method, out *[]*outputs.PlRowDef) {
 	queue := []struct {
-		rowDefName string
-		table      *types.Table
-		query      types.Query
+		rowDefName  string
+		parent      *outputs.PlRowDef
+		parentField *outputs.PlFieldDef
+		table       *types.Table
+		query       types.Query
 	}{
 		{
 			rowDefName: method.Name,
@@ -89,21 +91,31 @@ func (s FromSchema) GetRowDefs(method types.Method, out *[]*outputs.PlRowDef) {
 			queue = queue[1:]
 		}
 
-		def := outputs.PlRowDef{
-			TableName: current.table.Name,
-			DefName:   current.rowDefName,
+		def := &outputs.PlRowDef{
+			TableName:   current.table.Name,
+			DefName:     current.rowDefName,
+			Parent:      current.parent,
+			ParentField: current.parentField,
 		}
 
 		columns := s.getColumns(current.query, current.table)
 		for _, col := range columns {
-			def.Fields = append(def.Fields, &outputs.PlFieldDef{
+			field := &outputs.PlFieldDef{
 				TableFieldName: col.Name,
 				Name:           col.Name,
 				Type: outputs.PlType{
 					Primitive: SqlColumnTypeToPlType(col.Type),
 					Nullable:  col.Nullable,
 				},
-			})
+			}
+
+			for _, pkey := range current.table.PrimaryKey {
+				if pkey == col {
+					def.PrimaryKey = append(def.PrimaryKey, field)
+					break
+				}
+			}
+			def.Fields = append(def.Fields, field)
 		}
 
 		i := 0
@@ -137,29 +149,35 @@ func (s FromSchema) GetRowDefs(method types.Method, out *[]*outputs.PlRowDef) {
 				isUniqueFkey = true
 			}
 
-			queue = append(queue, struct {
-				rowDefName string
-				table      *types.Table
-				query      types.Query
-			}{
-				rowDefName: current.rowDefName + fmt.Sprint(i),
-				table:      childTable,
-				query:      with.Query,
-			})
 			rowDefIdxOffset++
-
-			def.Fields = append(def.Fields, &outputs.PlFieldDef{
+			field := &outputs.PlFieldDef{
 				Name: childTable.Name,
 				Type: outputs.PlType{
 					IsRowDef: true,
 					RowDef:   rowDefIdxOffset,
 					Array:    !isUniqueFkey,
 				},
+			}
+
+			queue = append(queue, struct {
+				rowDefName  string
+				parent      *outputs.PlRowDef
+				parentField *outputs.PlFieldDef
+				table       *types.Table
+				query       types.Query
+			}{
+				rowDefName:  current.rowDefName + fmt.Sprint(i),
+				parent:      def,
+				parentField: field,
+				table:       childTable,
+				query:       with.Query,
 			})
+
+			def.Fields = append(def.Fields, field)
 			i++
 		}
 
-		*out = append(*out, &def)
+		*out = append(*out, def)
 	}
 }
 

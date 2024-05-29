@@ -33,7 +33,10 @@ type PlFieldDef struct {
 // a struct, object typedef, or class
 type PlRowDef struct {
 	// just for metadata usage
-	TableName string
+	TableName   string
+	PrimaryKey  []*PlFieldDef
+	Parent      *PlRowDef
+	ParentField *PlFieldDef
 
 	DefName string
 	Fields  []*PlFieldDef

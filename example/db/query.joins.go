@@ -5,33 +5,55 @@ package db
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
+
+type queryMap[T any] struct {
+	dict map[string]*T
+	list []T
+}
+
+func newQueryMap[T any]() queryMap[T] {
+	return queryMap[T]{
+		dict: make(map[string]*T),
+	}
+}
 
 // Table: User
 type GetUserData struct {
 	Gpa              float64
 	Email            string
-	PSUserCourse     []GetUserData0
-	MoodleUserCourse []GetUserData1
-}
-
-// Table: PSUserCourse
-type GetUserData0 struct {
-	CourseName       string
-	UserEmail        string
-	PSUserAssignment []GetUserData00
-	PSUserMeeting    []GetUserData01
+	MoodleUserCourse []GetUserData0
+	PSUserCourse     []GetUserData1
 }
 
 // Table: MoodleUserCourse
-type GetUserData1 struct {
+type GetUserData0 struct {
 	CourseId     string
 	UserEmail    string
-	MoodleCourse GetUserData10
+	MoodleCourse GetUserData00
+}
+
+// Table: PSUserCourse
+type GetUserData1 struct {
+	CourseName       string
+	UserEmail        string
+	PSUserAssignment []GetUserData10
+	PSUserMeeting    []GetUserData11
+}
+
+// Table: MoodleCourse
+type GetUserData00 struct {
+	Id               string
+	CourseName       string
+	Teacher          sql.NullString
+	Zoom             sql.NullString
+	MoodlePage       []GetUserData000
+	MoodleAssignment []GetUserData001
 }
 
 // Table: PSUserAssignment
-type GetUserData00 struct {
+type GetUserData10 struct {
 	UserEmail      string
 	AssignmentName string
 	CourseName     string
@@ -39,29 +61,35 @@ type GetUserData00 struct {
 	Collected      int
 	Scored         sql.NullFloat64
 	Total          sql.NullFloat64
-	PSAssignment   GetUserData000
+	PSAssignment   GetUserData100
 }
 
 // Table: PSUserMeeting
-type GetUserData01 struct {
+type GetUserData11 struct {
 	UserEmail  string
 	CourseName string
 	StartTime  int
 	EndTime    int
 }
 
-// Table: MoodleCourse
-type GetUserData10 struct {
-	Id               string
-	CourseName       string
-	Teacher          sql.NullString
-	Zoom             sql.NullString
-	MoodlePage       []GetUserData100
-	MoodleAssignment []GetUserData101
+// Table: MoodlePage
+type GetUserData000 struct {
+	CourseId string
+	Url      string
+	Content  string
+}
+
+// Table: MoodleAssignment
+type GetUserData001 struct {
+	Name        string
+	CourseId    string
+	Description sql.NullString
+	Duedate     int
+	Category    sql.NullString
 }
 
 // Table: PSAssignment
-type GetUserData000 struct {
+type GetUserData100 struct {
 	Name               string
 	CourseName         string
 	AssignmentTypeName string
@@ -70,25 +98,23 @@ type GetUserData000 struct {
 	Category           string
 }
 
-// Table: MoodlePage
-type GetUserData100 struct {
-	CourseId string
-	Url      string
-	Content  string
-}
-
-// Table: MoodleAssignment
-type GetUserData101 struct {
-	Name        string
-	CourseId    string
-	Description sql.NullString
-	Duedate     int
-	Category    sql.NullString
-}
-
 const queryGetUserData = `select
 User.gpa as User_gpa
 User.email as User_email
+MoodleUserCourse.courseId as MoodleUserCourse_courseId
+MoodleUserCourse.userEmail as MoodleUserCourse_userEmail
+MoodleCourse.id as MoodleCourse_id
+MoodleCourse.courseName as MoodleCourse_courseName
+MoodleCourse.teacher as MoodleCourse_teacher
+MoodleCourse.zoom as MoodleCourse_zoom
+MoodlePage.courseId as MoodlePage_courseId
+MoodlePage.url as MoodlePage_url
+MoodlePage.content as MoodlePage_content
+MoodleAssignment.name as MoodleAssignment_name
+MoodleAssignment.courseId as MoodleAssignment_courseId
+MoodleAssignment.description as MoodleAssignment_description
+MoodleAssignment.duedate as MoodleAssignment_duedate
+MoodleAssignment.category as MoodleAssignment_category
 PSUserCourse.courseName as PSUserCourse_courseName
 PSUserCourse.userEmail as PSUserCourse_userEmail
 PSUserAssignment.userEmail as PSUserAssignment_userEmail
@@ -108,29 +134,15 @@ PSUserMeeting.userEmail as PSUserMeeting_userEmail
 PSUserMeeting.courseName as PSUserMeeting_courseName
 PSUserMeeting.startTime as PSUserMeeting_startTime
 PSUserMeeting.endTime as PSUserMeeting_endTime
-MoodleUserCourse.courseId as MoodleUserCourse_courseId
-MoodleUserCourse.userEmail as MoodleUserCourse_userEmail
-MoodleCourse.id as MoodleCourse_id
-MoodleCourse.courseName as MoodleCourse_courseName
-MoodleCourse.teacher as MoodleCourse_teacher
-MoodleCourse.zoom as MoodleCourse_zoom
-MoodlePage.courseId as MoodlePage_courseId
-MoodlePage.url as MoodlePage_url
-MoodlePage.content as MoodlePage_content
-MoodleAssignment.name as MoodleAssignment_name
-MoodleAssignment.courseId as MoodleAssignment_courseId
-MoodleAssignment.description as MoodleAssignment_description
-MoodleAssignment.duedate as MoodleAssignment_duedate
-MoodleAssignment.category as MoodleAssignment_category
 from GetUserData
-inner join PSUserCourse on PSUserCourse.userEmail = User.email
-inner join PSUserAssignment on PSUserAssignment.courseName = PSUserCourse.courseName and PSUserAssignment.userEmail = PSUserCourse.userEmail
-inner join PSAssignment on PSUserAssignment.assignmentName = PSAssignment.name and PSUserAssignment.courseName = PSAssignment.courseName
-inner join PSUserMeeting on PSUserMeeting.userEmail = PSUserCourse.userEmail and PSUserMeeting.courseName = PSUserCourse.courseName
 inner join MoodleUserCourse on MoodleUserCourse.userEmail = User.email
 inner join MoodleCourse on MoodleUserCourse.courseId = MoodleCourse.id
 inner join MoodlePage on MoodlePage.courseId = MoodleCourse.id
 inner join MoodleAssignment on MoodleAssignment.courseId = MoodleCourse.id
+inner join PSUserCourse on PSUserCourse.userEmail = User.email
+inner join PSUserAssignment on PSUserAssignment.courseName = PSUserCourse.courseName and PSUserAssignment.userEmail = PSUserCourse.userEmail
+inner join PSAssignment on PSUserAssignment.assignmentName = PSAssignment.name and PSUserAssignment.courseName = PSAssignment.courseName
+inner join PSUserMeeting on PSUserMeeting.userEmail = PSUserCourse.userEmail and PSUserMeeting.courseName = PSUserCourse.courseName
 where User.email = ?
 order by
 User.gpa asc`
@@ -142,79 +154,145 @@ func (q *Queries) GetUserData(ctx context.Context, args any) ([]GetUserData, err
 	}
 	defer rows.Close()
 
-	var GetUserDataMap map[string]GetUserData
-	var GetUserData0Map map[string]GetUserData0
-	var GetUserData1Map map[string]GetUserData1
-	var GetUserData00Map map[string]GetUserData00
-	var GetUserData01Map map[string]GetUserData01
-	var GetUserData10Map map[string]GetUserData10
-	var GetUserData000Map map[string]GetUserData000
-	var GetUserData100Map map[string]GetUserData100
-	var GetUserData101Map map[string]GetUserData101
+	GetUserDataMap := newQueryMap[GetUserData]()
+	GetUserData0Map := newQueryMap[GetUserData0]()
+	GetUserData1Map := newQueryMap[GetUserData1]()
+	GetUserData00Map := newQueryMap[GetUserData00]()
+	GetUserData10Map := newQueryMap[GetUserData10]()
+	GetUserData11Map := newQueryMap[GetUserData11]()
+	GetUserData000Map := newQueryMap[GetUserData000]()
+	GetUserData001Map := newQueryMap[GetUserData001]()
+	GetUserData100Map := newQueryMap[GetUserData100]()
 
 	for rows.Next() {
 		var GetUserData GetUserData
 		var GetUserData0 GetUserData0
 		var GetUserData1 GetUserData1
 		var GetUserData00 GetUserData00
-		var GetUserData01 GetUserData01
 		var GetUserData10 GetUserData10
+		var GetUserData11 GetUserData11
 		var GetUserData000 GetUserData000
+		var GetUserData001 GetUserData001
 		var GetUserData100 GetUserData100
-		var GetUserData101 GetUserData101
 
 		err := rows.Scan(
 			&GetUserData.Gpa,
 			&GetUserData.Email,
-			&GetUserData0.CourseName,
+			&GetUserData0.CourseId,
 			&GetUserData0.UserEmail,
-			&GetUserData00.UserEmail,
-			&GetUserData00.AssignmentName,
+			&GetUserData00.Id,
 			&GetUserData00.CourseName,
-			&GetUserData00.Missing,
-			&GetUserData00.Collected,
-			&GetUserData00.Scored,
-			&GetUserData00.Total,
-			&GetUserData000.Name,
-			&GetUserData000.CourseName,
-			&GetUserData000.AssignmentTypeName,
-			&GetUserData000.Description,
-			&GetUserData000.Duedate,
-			&GetUserData000.Category,
-			&GetUserData01.UserEmail,
-			&GetUserData01.CourseName,
-			&GetUserData01.StartTime,
-			&GetUserData01.EndTime,
-			&GetUserData1.CourseId,
+			&GetUserData00.Teacher,
+			&GetUserData00.Zoom,
+			&GetUserData000.CourseId,
+			&GetUserData000.Url,
+			&GetUserData000.Content,
+			&GetUserData001.Name,
+			&GetUserData001.CourseId,
+			&GetUserData001.Description,
+			&GetUserData001.Duedate,
+			&GetUserData001.Category,
+			&GetUserData1.CourseName,
 			&GetUserData1.UserEmail,
-			&GetUserData10.Id,
+			&GetUserData10.UserEmail,
+			&GetUserData10.AssignmentName,
 			&GetUserData10.CourseName,
-			&GetUserData10.Teacher,
-			&GetUserData10.Zoom,
-			&GetUserData100.CourseId,
-			&GetUserData100.Url,
-			&GetUserData100.Content,
-			&GetUserData101.Name,
-			&GetUserData101.CourseId,
-			&GetUserData101.Description,
-			&GetUserData101.Duedate,
-			&GetUserData101.Category,
+			&GetUserData10.Missing,
+			&GetUserData10.Collected,
+			&GetUserData10.Scored,
+			&GetUserData10.Total,
+			&GetUserData100.Name,
+			&GetUserData100.CourseName,
+			&GetUserData100.AssignmentTypeName,
+			&GetUserData100.Description,
+			&GetUserData100.Duedate,
+			&GetUserData100.Category,
+			&GetUserData11.UserEmail,
+			&GetUserData11.CourseName,
+			&GetUserData11.StartTime,
+			&GetUserData11.EndTime,
 		)
 		if err != nil {
 			return nil, err
 		}
 
+		GetUserDataPkey := fmt.Sprint(GetUserData.Email)
+		existingGetUserData, ok := GetUserDataMap.dict[GetUserDataPkey]
+		if !ok {
+			GetUserDataMap.list = append(GetUserDataMap.list, GetUserData)
+			GetUserDataMap.dict[GetUserDataPkey] = &GetUserDataMap.list[len(GetUserDataMap.list)-1]
+		}
+
+		GetUserData0Pkey := fmt.Sprint(GetUserData0.CourseId, GetUserData0.UserEmail)
+		existingGetUserData0, ok := GetUserData0Map.dict[GetUserData0Pkey]
+		if !ok {
+			GetUserData0Map.list = append(GetUserData0Map.list, GetUserData0)
+			GetUserData0Map.dict[GetUserData0Pkey] = &GetUserData0Map.list[len(GetUserData0Map.list)-1]
+			existingGetUserData.MoodleUserCourse = append(existingGetUserData.MoodleUserCourse, *existingGetUserData0)
+		}
+
+		GetUserData1Pkey := fmt.Sprint(GetUserData1.CourseName, GetUserData1.UserEmail)
+		existingGetUserData1, ok := GetUserData1Map.dict[GetUserData1Pkey]
+		if !ok {
+			GetUserData1Map.list = append(GetUserData1Map.list, GetUserData1)
+			GetUserData1Map.dict[GetUserData1Pkey] = &GetUserData1Map.list[len(GetUserData1Map.list)-1]
+			existingGetUserData.PSUserCourse = append(existingGetUserData.PSUserCourse, *existingGetUserData1)
+		}
+
+		GetUserData00Pkey := fmt.Sprint(GetUserData00.Id)
+		existingGetUserData00, ok := GetUserData00Map.dict[GetUserData00Pkey]
+		if !ok {
+			GetUserData00Map.list = append(GetUserData00Map.list, GetUserData00)
+			GetUserData00Map.dict[GetUserData00Pkey] = &GetUserData00Map.list[len(GetUserData00Map.list)-1]
+			existingGetUserData0.MoodleCourse = *existingGetUserData00
+		}
+
+		GetUserData10Pkey := fmt.Sprint(GetUserData10.UserEmail, GetUserData10.AssignmentName, GetUserData10.CourseName)
+		existingGetUserData10, ok := GetUserData10Map.dict[GetUserData10Pkey]
+		if !ok {
+			GetUserData10Map.list = append(GetUserData10Map.list, GetUserData10)
+			GetUserData10Map.dict[GetUserData10Pkey] = &GetUserData10Map.list[len(GetUserData10Map.list)-1]
+			existingGetUserData1.PSUserAssignment = append(existingGetUserData1.PSUserAssignment, *existingGetUserData10)
+		}
+
+		GetUserData11Pkey := fmt.Sprint(GetUserData11.UserEmail, GetUserData11.CourseName, GetUserData11.StartTime)
+		existingGetUserData11, ok := GetUserData11Map.dict[GetUserData11Pkey]
+		if !ok {
+			GetUserData11Map.list = append(GetUserData11Map.list, GetUserData11)
+			GetUserData11Map.dict[GetUserData11Pkey] = &GetUserData11Map.list[len(GetUserData11Map.list)-1]
+			existingGetUserData1.PSUserMeeting = append(existingGetUserData1.PSUserMeeting, *existingGetUserData11)
+		}
+
+		GetUserData000Pkey := fmt.Sprint(GetUserData000.CourseId, GetUserData000.Url)
+		existingGetUserData000, ok := GetUserData000Map.dict[GetUserData000Pkey]
+		if !ok {
+			GetUserData000Map.list = append(GetUserData000Map.list, GetUserData000)
+			GetUserData000Map.dict[GetUserData000Pkey] = &GetUserData000Map.list[len(GetUserData000Map.list)-1]
+			existingGetUserData00.MoodlePage = append(existingGetUserData00.MoodlePage, *existingGetUserData000)
+		}
+
+		GetUserData001Pkey := fmt.Sprint(GetUserData001.Name, GetUserData001.CourseId)
+		existingGetUserData001, ok := GetUserData001Map.dict[GetUserData001Pkey]
+		if !ok {
+			GetUserData001Map.list = append(GetUserData001Map.list, GetUserData001)
+			GetUserData001Map.dict[GetUserData001Pkey] = &GetUserData001Map.list[len(GetUserData001Map.list)-1]
+			existingGetUserData00.MoodleAssignment = append(existingGetUserData00.MoodleAssignment, *existingGetUserData001)
+		}
+
+		GetUserData100Pkey := fmt.Sprint(GetUserData100.Name, GetUserData100.CourseName)
+		existingGetUserData100, ok := GetUserData100Map.dict[GetUserData100Pkey]
+		if !ok {
+			GetUserData100Map.list = append(GetUserData100Map.list, GetUserData100)
+			GetUserData100Map.dict[GetUserData100Pkey] = &GetUserData100Map.list[len(GetUserData100Map.list)-1]
+			existingGetUserData10.PSAssignment = *existingGetUserData100
+		}
 	}
 
-	var items []GetUserData
-	for _, i := range GetUserDataMap {
-		items = append(items, i)
-	}
 	if err := rows.Close(); err != nil {
 		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	return items, nil
+	return GetUserDataMap.list, nil
 }
