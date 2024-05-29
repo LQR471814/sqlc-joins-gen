@@ -110,7 +110,35 @@ func (g SqliteGenerator) limitAndOffset(limit, offset int) string {
 	return result
 }
 
+func (g SqliteGenerator) selectSubquery(table string, opts SqlSelectOpts) string {
+	return fmt.Sprintf(
+		`select * from "%s" %s %s %s`,
+		table,
+		g.where(opts.Where),
+		g.orderByList(opts.OrderBy),
+		g.limitAndOffset(opts.Limit, opts.Offset),
+	)
+}
+
 func (g SqliteGenerator) Select(s SqlSelect) string {
+	if s.FirstOnly {
+		tableQuery := g.selectSubquery(s.Table, SqlSelectOpts{
+			Limit:   1,
+			Offset:  s.Opts.Offset,
+			Where:   s.Opts.Where,
+			OrderBy: s.Opts.OrderBy,
+		})
+		res := fmt.Sprintf(
+			"select\n%s\nfrom (%s) %s",
+			g.selectFieldList(s.Select),
+			tableQuery,
+			g.joinLineList(s.Joins),
+		)
+		if s.Opts.Limit > 0 {
+			res += fmt.Sprintf(" limit %d", s.Opts.Limit)
+		}
+		return res
+	}
 	return fmt.Sprintf(
 		"select\n%s\nfrom \"%s\"\n%s\n%s\n%s\n%s",
 		g.selectFieldList(s.Select),

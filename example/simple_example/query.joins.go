@@ -38,16 +38,16 @@ const getAuthorsQuery = `select
 "Book"."id" as "Book_id",
 "Book"."authorId" as "Book_authorId",
 "Book"."name" as "Book_name"
-from "getAuthors"
+from "Author"
 inner join (select * from "Book"  order by "Book"."name" dsc limit 5) as "Book" on "Book"."authorId" = "Author"."id"
 where Author.age > ?
 order by "Author"."age" asc
 offset 4`
 
-func (q *Queries) GetAuthors(ctx context.Context, args any) ([]GetAuthors, error) {
+func (q *Queries) GetAuthors(ctx context.Context, args any) (GetAuthors, error) {
 	rows, err := q.db.QueryContext(ctx, getAuthorsQuery, args)
 	if err != nil {
-		return nil, err
+		return GetAuthors{}, err
 	}
 	defer rows.Close()
 
@@ -66,7 +66,7 @@ func (q *Queries) GetAuthors(ctx context.Context, args any) ([]GetAuthors, error
 			&getAuthors0.Name,
 		)
 		if err != nil {
-			return nil, err
+			return GetAuthors{}, err
 		}
 
 		getAuthorsPkey := fmt.Sprint(getAuthors.Id)
@@ -85,11 +85,13 @@ func (q *Queries) GetAuthors(ctx context.Context, args any) ([]GetAuthors, error
 		}
 	}
 
-	if err := rows.Close(); err != nil {
-		return nil, err
+	err = rows.Close()
+	if err != nil {
+		return GetAuthors{}, err
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+	err = rows.Err()
+	if err != nil {
+		return GetAuthors{}, err
 	}
-	return getAuthorsMap.list, nil
+	return getAuthorsMap.list[0], nil
 }

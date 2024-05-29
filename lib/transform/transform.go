@@ -271,7 +271,7 @@ func (s FromSchema) GetSelect(method types.Method) outputs.SqlSelect {
 	s.getJoins(method.Query, method.Table, &joins)
 
 	return outputs.SqlSelect{
-		Table:  method.Name,
+		Table:  method.Table.Name,
 		Select: fields,
 		Joins:  joins,
 		Opts: outputs.SqlSelectOpts{

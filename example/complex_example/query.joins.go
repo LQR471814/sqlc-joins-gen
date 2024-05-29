@@ -134,7 +134,7 @@ const getUserDataQuery = `select
 "MoodleAssignment"."description" as "MoodleAssignment_description",
 "MoodleAssignment"."duedate" as "MoodleAssignment_duedate",
 "MoodleAssignment"."category" as "MoodleAssignment_category"
-from "getUserData"
+from "User"
 inner join "PSUserCourse" on "PSUserCourse"."userEmail" = "User"."email"
 inner join "PSUserAssignment" on "PSUserAssignment"."courseName" = "PSUserCourse"."courseName" and "PSUserAssignment"."userEmail" = "PSUserCourse"."userEmail"
 inner join "PSAssignment" on "PSUserAssignment"."assignmentName" = "PSAssignment"."name" and "PSUserAssignment"."courseName" = "PSAssignment"."courseName"
@@ -147,10 +147,10 @@ where User.email = ?
 order by "User"."gpa" asc
 `
 
-func (q *Queries) GetUserData(ctx context.Context, args any) ([]GetUserData, error) {
+func (q *Queries) GetUserData(ctx context.Context, args any) (GetUserData, error) {
 	rows, err := q.db.QueryContext(ctx, getUserDataQuery, args)
 	if err != nil {
-		return nil, err
+		return GetUserData{}, err
 	}
 	defer rows.Close()
 
@@ -213,7 +213,7 @@ func (q *Queries) GetUserData(ctx context.Context, args any) ([]GetUserData, err
 			&getUserData101.Category,
 		)
 		if err != nil {
-			return nil, err
+			return GetUserData{}, err
 		}
 
 		getUserDataPkey := fmt.Sprint(getUserData.Email)
@@ -288,11 +288,13 @@ func (q *Queries) GetUserData(ctx context.Context, args any) ([]GetUserData, err
 		}
 	}
 
-	if err := rows.Close(); err != nil {
-		return nil, err
+	err = rows.Close()
+	if err != nil {
+		return GetUserData{}, err
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+	err = rows.Err()
+	if err != nil {
+		return GetUserData{}, err
 	}
-	return getUserDataMap.list, nil
+	return getUserDataMap.list[0], nil
 }

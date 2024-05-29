@@ -11,3 +11,4 @@ create table Book (
     name text not null,
     foreign key (authorId) references Author(id)
 );
+

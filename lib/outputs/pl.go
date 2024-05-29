@@ -10,8 +10,6 @@ const (
 	BOOL
 )
 
-// TODO: make PlType not a recursive structure
-
 // the type part of a field definition
 type PlType struct {
 	Primitive PlPrimitive

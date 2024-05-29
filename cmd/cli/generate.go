@@ -44,6 +44,7 @@ func generate(
 		out := outputs.PlMethodDef{
 			MethodName: method.Name,
 			Sql:        sql,
+			FirstOnly:  method.Return == types.FIRST,
 		}
 
 		fromSchema.GetRowDefs(method, &out.RowDefs)

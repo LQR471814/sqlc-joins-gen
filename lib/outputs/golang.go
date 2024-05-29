@@ -116,19 +116,32 @@ func (g GolangGenerator) queryFunc(
 	out *bytes.Buffer,
 ) {
 	defs := method.RowDefs
+	upperRootDefName := utils.Capitalize(method.RootDef.DefName)
+
+	var returnType string
+	if method.FirstOnly {
+		returnType = upperRootDefName
+	} else {
+		returnType = fmt.Sprintf("[]%s", upperRootDefName)
+	}
+	var errReturnStmt string
+	if method.FirstOnly {
+		errReturnStmt = fmt.Sprintf("if err != nil { return %s{}, err }", upperRootDefName)
+	} else {
+		errReturnStmt = "if err != nil { return nil, err }"
+	}
 
 	out.WriteString(fmt.Sprintf(
-		// TODO: add args, add single return
-		"func (q *Queries) %s(ctx context.Context, args any) ([]%s, error) {\n",
-		utils.Capitalize(method.MethodName),
-		utils.Capitalize(method.RootDef.DefName),
+		// TODO: add args
+		"func (q *Queries) %s(ctx context.Context, args any) (%s, error) {\n",
+		utils.Capitalize(method.MethodName), returnType,
 	))
 
 	out.WriteString(fmt.Sprintf(
 		"rows, err := q.db.QueryContext(ctx, %sQuery, args)\n",
 		method.MethodName,
 	))
-	out.WriteString("if err != nil { return nil, err }; defer rows.Close()\n\n")
+	out.WriteString(fmt.Sprintf("%s; defer rows.Close()\n\n", errReturnStmt))
 
 	for _, row := range defs {
 		row.DefName = goId(row.DefName)
@@ -141,7 +154,7 @@ func (g GolangGenerator) queryFunc(
 	}
 	out.WriteString("\nerr := rows.Scan(\n")
 	g.scanRowCode(defs, method.RootDef, out)
-	out.WriteString(")\nif err != nil { return nil, err }")
+	out.WriteString(fmt.Sprintf(")\n%s", errReturnStmt))
 
 	for _, row := range defs {
 		out.WriteString("\n\n")
@@ -187,9 +200,16 @@ func (g GolangGenerator) queryFunc(
 	}
 
 	out.WriteString("}\n\n")
-	out.WriteString("if err := rows.Close(); err != nil { return nil, err }\n")
-	out.WriteString("if err := rows.Err(); err != nil { return nil, err }\n")
-	out.WriteString(fmt.Sprintf("return %sMap.list, nil\n}", method.MethodName))
+	out.WriteString("err = rows.Close()\n")
+	out.WriteString(fmt.Sprintf("%s\n", errReturnStmt))
+	out.WriteString("err = rows.Err()\n")
+	out.WriteString(fmt.Sprintf("%s\n", errReturnStmt))
+
+	indexSuffix := ""
+	if method.FirstOnly {
+		indexSuffix = "[0]"
+	}
+	out.WriteString(fmt.Sprintf("return %sMap.list%s, nil\n}", method.MethodName, indexSuffix))
 }
 
 type GoCodegenOptions struct {

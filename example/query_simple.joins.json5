@@ -19,7 +19,7 @@
             // define which tables to join with
             with: {
                 // Query - Define a joined table and options for its select statement
-                Book: { 
+                Book: {
                     // common select options
                     orderBy: {
                         name: "dsc"

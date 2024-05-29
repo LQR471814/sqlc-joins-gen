@@ -39,10 +39,11 @@ type SqlOrderBy struct {
 
 // a single select statement `select ... from Table join ForeignTable on ...`
 type SqlSelect struct {
-	Table  string
-	Select []SqlSelectField
-	Joins  []SqlJoinLine
-	Opts   SqlSelectOpts
+	Table     string
+	FirstOnly bool
+	Select    []SqlSelectField
+	Joins     []SqlJoinLine
+	Opts      SqlSelectOpts
 }
 
 // the interface all sql generators must fulfill
