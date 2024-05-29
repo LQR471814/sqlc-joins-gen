@@ -9,12 +9,12 @@ import (
 	"sqlc-joins-gen/lib/utils"
 )
 
-func lowerGoIdentifier(name string) string {
+func goId(name string) string {
 	result := ""
 
 	for i, c := range name {
 		if i == 0 && c >= '0' && c <= '9' {
-			result += "T"
+			panic(fmt.Sprintf("identifier should not start with a number '%s'", name))
 		}
 		if c == '-' || c == '_' {
 			continue
@@ -33,8 +33,8 @@ func lowerGoIdentifier(name string) string {
 	return result
 }
 
-func upperGoIdentifier(name string) string {
-	return utils.Capitalize(lowerGoIdentifier(name))
+func upperGoId(id string) string {
+	return utils.Capitalize(goId(id))
 }
 
 type GolangGenerator struct {
@@ -44,7 +44,7 @@ type GolangGenerator struct {
 
 func (g GolangGenerator) typeStr(defs []*PlRowDef, t PlType) string {
 	if t.IsRowDef {
-		return defs[t.RowDef].DefName
+		return upperGoId(defs[t.RowDef].DefName)
 	}
 	switch t.Primitive {
 	case INT:
@@ -75,8 +75,7 @@ func (g GolangGenerator) writeStructDef(defs []*PlRowDef, out *bytes.Buffer) {
 	for _, row := range defs {
 		out.WriteString(fmt.Sprintf(
 			"// Table: %s\ntype %s struct {\n",
-			row.TableName,
-			upperGoIdentifier(row.DefName),
+			row.TableName, upperGoId(row.DefName),
 		))
 
 		for _, def := range row.Fields {
@@ -86,8 +85,7 @@ func (g GolangGenerator) writeStructDef(defs []*PlRowDef, out *bytes.Buffer) {
 			}
 			out.WriteString(fmt.Sprintf(
 				"%s %s\n",
-				upperGoIdentifier(def.Name),
-				typeStr,
+				upperGoId(def.Name), typeStr,
 			))
 		}
 		out.WriteString("}\n\n")
@@ -101,8 +99,8 @@ func (g GolangGenerator) scanRowCode(defs []*PlRowDef, root *PlRowDef, out *byte
 		}
 		out.WriteString(fmt.Sprintf(
 			"&%s.%s,\n",
-			root.DefName,
-			upperGoIdentifier(field.Name),
+			goId(root.DefName),
+			upperGoId(field.Name),
 		))
 	}
 	for _, field := range root.Fields {
@@ -122,23 +120,24 @@ func (g GolangGenerator) queryFunc(
 	out.WriteString(fmt.Sprintf(
 		// TODO: add args, add single return
 		"func (q *Queries) %s(ctx context.Context, args any) ([]%s, error) {\n",
-		method.MethodName,
-		method.MethodName,
+		utils.Capitalize(method.MethodName),
+		utils.Capitalize(method.RootDef.DefName),
 	))
 
 	out.WriteString(fmt.Sprintf(
-		"rows, err := q.db.QueryContext(ctx, query%s, args)\n",
+		"rows, err := q.db.QueryContext(ctx, %sQuery, args)\n",
 		method.MethodName,
 	))
 	out.WriteString("if err != nil { return nil, err }; defer rows.Close()\n\n")
 
 	for _, row := range defs {
-		out.WriteString(fmt.Sprintf("%sMap := newQueryMap[%s]()\n", row.DefName, row.DefName))
+		row.DefName = goId(row.DefName)
+		out.WriteString(fmt.Sprintf("%sMap := newQueryMap[%s]()\n", row.DefName, utils.Capitalize(row.DefName)))
 	}
 
 	out.WriteString("\nfor rows.Next() {\n")
 	for _, row := range defs {
-		out.WriteString(fmt.Sprintf("var %s %s\n", row.DefName, row.DefName))
+		out.WriteString(fmt.Sprintf("var %s %s\n", row.DefName, utils.Capitalize(row.DefName)))
 	}
 	out.WriteString("\nerr := rows.Scan(\n")
 	g.scanRowCode(defs, method.RootDef, out)
@@ -152,12 +151,12 @@ func (g GolangGenerator) queryFunc(
 			if i > 0 {
 				out.WriteString(", ")
 			}
-			out.WriteString(fmt.Sprintf("%s.%s", row.DefName, upperGoIdentifier(col.Name)))
+			out.WriteString(fmt.Sprintf("%s.%s", row.DefName, utils.Capitalize(col.Name)))
 		}
 		out.WriteString(")\n")
 
 		out.WriteString(fmt.Sprintf(
-			"existing%s, ok := %sMap.dict[%sPkey]\n",
+			"%sExisting, ok := %sMap.dict[%sPkey]\n",
 			row.DefName, row.DefName, row.DefName,
 		))
 		out.WriteString("if !ok {\n")
@@ -172,13 +171,13 @@ func (g GolangGenerator) queryFunc(
 		if row.Parent != nil && row.ParentField != nil {
 			if row.ParentField.Type.Array {
 				out.WriteString(fmt.Sprintf(
-					"existing%s.%s = append(existing%s.%s, *existing%s)\n",
+					"%sExisting.%s = append(%sExisting.%s, *%sExisting)\n",
 					row.Parent.DefName, row.TableName, row.Parent.DefName, row.TableName,
 					row.DefName,
 				))
 			} else {
 				out.WriteString(fmt.Sprintf(
-					"existing%s.%s = *existing%s\n",
+					"%sExisting.%s = *%sExisting\n",
 					row.Parent.DefName, row.TableName, row.DefName,
 				))
 			}
@@ -218,15 +217,19 @@ func newQueryMap[T any]() queryMap[T] {
 	for _, method := range script.Methods {
 		g.writeStructDef(method.RowDefs, out)
 		out.WriteString(fmt.Sprintf(
-			"\n\nconst query%s = `%s`\n\n",
+			"\n\nconst %sQuery = `%s`\n\n",
 			method.RootDef.DefName,
 			method.Sql,
 		))
 		g.queryFunc(method, out)
 	}
 
+	err := os.MkdirAll(g.PackagePath, 0777)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
 	outPath := path.Join(g.PackagePath, "query.joins.go")
-	err := os.WriteFile(outPath, out.Bytes(), 0777)
+	err = os.WriteFile(outPath, out.Bytes(), 0777)
 	if err != nil {
 		return err
 	}

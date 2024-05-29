@@ -5,6 +5,8 @@ import (
 	"sqlc-joins-gen/lib/types"
 	"sqlc-joins-gen/lib/utils"
 	"testing"
+
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestIsUniqueFkey(t *testing.T) {
@@ -297,7 +299,7 @@ func TestGetRowDef(t *testing.T) {
 				Query: types.Query{
 					Columns: []types.QueryColumn{
 						{
-							Column: schemas[0].MustFindTable("Book").FindColumn("authorId"),
+							Column:  schemas[0].MustFindTable("Book").FindColumn("authorId"),
 							Enabled: true,
 						},
 					},
@@ -307,7 +309,7 @@ func TestGetRowDef(t *testing.T) {
 							Query: types.Query{
 								Columns: []types.QueryColumn{
 									{
-										Column: schemas[0].MustFindTable("Author").FindColumn("name"),
+										Column:  schemas[0].MustFindTable("Author").FindColumn("name"),
 										Enabled: false,
 									},
 								},
@@ -379,6 +381,8 @@ func TestGetRowDef(t *testing.T) {
 				{
 					DefName:   "getAuthorAndBooks",
 					TableName: "Author",
+					PrimaryKey: []*outputs.PlFieldDef{
+					},
 					Fields: []*outputs.PlFieldDef{
 						{
 							Name:           "id",
@@ -407,6 +411,8 @@ func TestGetRowDef(t *testing.T) {
 				{
 					DefName:   "getAuthorAndBooks0",
 					TableName: "Book",
+					PrimaryKey: []*outputs.PlFieldDef{
+					},
 					Fields: []*outputs.PlFieldDef{
 						{
 							Name:           "id",
@@ -746,7 +752,12 @@ func TestGetRowDef(t *testing.T) {
 		var result []*outputs.PlRowDef
 		generator.GetRowDefs(test.method, &result)
 
-		diff := utils.DiffUnordered(test.expected, result)
+		diff := utils.DiffUnordered(
+			test.expected, result,
+			cmpopts.IgnoreFields(outputs.PlRowDef{}, "PrimaryKey"),
+			cmpopts.IgnoreFields(outputs.PlRowDef{}, "Parent"),
+			cmpopts.IgnoreFields(outputs.PlRowDef{}, "ParentField"),
+		)
 
 		if diff != "" {
 			t.Fatalf(

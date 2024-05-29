@@ -1,9 +1,16 @@
 version: "2"
 sql:
   - engine: "sqlite"
-    queries: "query.sql"
-    schema: "schema.sql"
+    queries: "query_complex.sql"
+    schema: "schema_complex.sql"
     gen:
       go:
-        package: "db"
-        out: "db"
+        package: "complex_example"
+        out: "complex_example"
+  - engine: "sqlite"
+    queries: "query_simple.sql"
+    schema: "schema_simple.sql"
+    gen:
+      go:
+        package: "simple_example"
+        out: "simple_example"

@@ -9,15 +9,15 @@ func TestToGoIdentifier(t *testing.T) {
 	}{
 		{
 			test:     "kebab-case-thing",
-			expected: "Kebabcasething",
+			expected: "kebabcasething",
 		},
 		{
 			test:     "snake_case",
-			expected: "Snakecase",
+			expected: "snakecase",
 		},
 		{
 			test:     "camelCase",
-			expected: "CamelCase",
+			expected: "camelCase",
 		},
 		{
 			test:     "PascalCase",
@@ -25,7 +25,7 @@ func TestToGoIdentifier(t *testing.T) {
 		},
 		{
 			test:     "22-numbers-in-front",
-			expected: "T22numbersinfront",
+			expected: "<PANIC>",
 		},
 		{
 			test:     "invalid thing with spaces",
@@ -45,10 +45,11 @@ func TestToGoIdentifier(t *testing.T) {
 				}
 				panic(err)
 			}()
-			return upperGoIdentifier(c.test)
+			return goId(c.test)
 		}()
 		if result != c.expected && c.expected != "<PANIC>" {
 			t.Fatalf("expected '%s' but got '%s'", c.expected, result)
 		}
 	}
 }
+

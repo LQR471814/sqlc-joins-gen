@@ -51,6 +51,7 @@ type PlScanEntry struct {
 // refers to a collection of queries
 type PlMethodDef struct {
 	MethodName string
+	FirstOnly  bool
 	RowDefs    []*PlRowDef
 	RootDef    *PlRowDef
 	// defines the order of columns when scanning rows in

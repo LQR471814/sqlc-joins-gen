@@ -1,0 +1,40 @@
+[
+    // Method - Define a relational query
+    {
+        // name of the function generated for the method
+        name: "getAuthors", 
+        // whether to return first or many results
+        return: "first",
+        // the SQL table to target at the top level
+        table: "Author",
+        // Query - Define options for the select statement
+        query: {
+            columns: {
+                // only include the `name` column + primary keys
+                // this will exclude `age` & `alive`
+                name: true 
+                // primary keys are always included in the underlying select statement
+                // due to implementation details
+            },
+            // define which tables to join with
+            with: {
+                // Query - Define a joined table and options for its select statement
+                Book: { 
+                    // common select options
+                    orderBy: {
+                        name: "dsc"
+                    },
+                    limit: 5,
+                    // you could keep nesting Queries "Book" had another relation as well.
+                    with: {}
+                },
+            },
+            // common select options
+            where: "Author.age > ?",
+            orderBy: {
+                age: "asc",
+            },
+            offset: 4,
+        },
+    },
+]

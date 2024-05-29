@@ -47,6 +47,6 @@ func AddCustomSort[T any](newSorts... func(val T) string) {
 	}
 }
 
-func DiffUnordered(expected, got any) string {
-	return cmp.Diff(expected, got, sorts...)
+func DiffUnordered(expected, got any, opts... cmp.Option) string {
+	return cmp.Diff(expected, got, append(sorts, opts...)...)
 }
