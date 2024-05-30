@@ -2,9 +2,11 @@ package transform
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"sqlc-joins-gen/lib/outputs"
 	"sqlc-joins-gen/lib/types"
+	"sqlc-joins-gen/lib/utils"
 )
 
 type FromSchema struct {
@@ -69,7 +71,60 @@ func (s FromSchema) getColumns(query types.Query, table *types.Table) []*types.C
 	return columns
 }
 
-func (s FromSchema) GetRowDefs(method types.Method, out *[]*outputs.PlRowDef) {
+var queryArgRegex = regexp.MustCompile(`\$(\w+):(\w+)(\?)?(\[\])?`)
+
+func (s FromSchema) getQueryArgs(query types.Query, out *[]outputs.PlQueryArg) error {
+	var err error
+
+	*query.Where = utils.ReplaceAllStringSubmatchFunc(queryArgRegex, *query.Where, func(m []string) string {
+		name := m[1]
+		typestr := m[2]
+		nullable := m[3] != ""
+		isArray := m[4] != ""
+
+		var primitive outputs.PlPrimitive
+		switch typestr {
+		case "int":
+			primitive = outputs.INT
+		case "str":
+			primitive = outputs.STRING
+		case "float":
+			primitive = outputs.FLOAT
+		case "bool":
+			primitive = outputs.BOOL
+		default:
+			err = fmt.Errorf(
+				"unknown type in arg definition '%s' in '%s'",
+				m[2], m[0],
+			)
+			return "ERROR"
+		}
+
+		*out = append(*out, outputs.PlQueryArg{
+			Name: name,
+			Type: outputs.PlType{
+				Primitive: primitive,
+				Nullable:  nullable,
+				Array:     isArray,
+			},
+		})
+
+		return fmt.Sprintf("$%d", len(*out)-1)
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, with := range query.With {
+		err = s.getQueryArgs(with.Query, out)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s FromSchema) getRowDefs(method types.Method, out *[]*outputs.PlRowDef) {
 	queue := []struct {
 		rowDefName  string
 		parent      *outputs.PlRowDef
@@ -151,12 +206,10 @@ func (s FromSchema) GetRowDefs(method types.Method, out *[]*outputs.PlRowDef) {
 
 			rowDefIdxOffset++
 			field := &outputs.PlFieldDef{
-				Name: childTable.Name,
-				Type: outputs.PlType{
-					IsRowDef: true,
-					RowDef:   rowDefIdxOffset,
-					Array:    !isUniqueFkey,
-				},
+				Name:     childTable.Name,
+				Type:     outputs.PlType{Array: !isUniqueFkey},
+				IsRowDef: true,
+				RowDef:   rowDefIdxOffset,
 			}
 
 			queue = append(queue, struct {
@@ -181,6 +234,19 @@ func (s FromSchema) GetRowDefs(method types.Method, out *[]*outputs.PlRowDef) {
 	}
 }
 
+func (s FromSchema) GetMethodDef(method types.Method) (outputs.PlMethodDef, error) {
+	out := outputs.PlMethodDef{
+		MethodName: method.Name,
+		FirstOnly:  method.Return == types.FIRST,
+	}
+	err := s.getQueryArgs(method.Query, &out.Args)
+	if err != nil {
+		return outputs.PlMethodDef{}, err
+	}
+	s.getRowDefs(method, &out.RowDefs)
+	return out, nil
+}
+
 func (s FromSchema) getSelectFields(query types.Query, table *types.Table, out *[]outputs.SqlSelectField) {
 	columns := s.getColumns(query, table)
 
@@ -197,7 +263,7 @@ func (s FromSchema) getSelectFields(query types.Query, table *types.Table, out *
 	}
 }
 
-func (s FromSchema) getJoinLine(source, target *types.Table) outputs.SqlJoinLine {
+func (s FromSchema) getJoinLine(source, target *types.Table) (outputs.SqlJoinLine, error) {
 	for _, fkey := range source.ForeignKeys {
 		if fkey.TargetTable == target {
 			line := outputs.SqlJoinLine{Table: target.Name}
@@ -209,7 +275,7 @@ func (s FromSchema) getJoinLine(source, target *types.Table) outputs.SqlJoinLine
 					TargetAttr:  on.TargetColumn.Name,
 				})
 			}
-			return line
+			return line, nil
 		}
 	}
 
@@ -224,14 +290,14 @@ func (s FromSchema) getJoinLine(source, target *types.Table) outputs.SqlJoinLine
 					TargetAttr:  on.TargetColumn.Name,
 				})
 			}
-			return line
+			return line, nil
 		}
 	}
 
-	panic(fmt.Sprintf(
+	return outputs.SqlJoinLine{}, fmt.Errorf(
 		"there is no possible join that can be formed from '%s' to '%s'",
 		source.Name, target.Name,
-	))
+	)
 }
 
 func (s FromSchema) getSqlOrderBy(table string, query types.Query) []outputs.SqlOrderBy {
@@ -246,9 +312,12 @@ func (s FromSchema) getSqlOrderBy(table string, query types.Query) []outputs.Sql
 	return orderBy
 }
 
-func (s FromSchema) getJoins(query types.Query, parentTable *types.Table, out *[]outputs.SqlJoinLine) {
+func (s FromSchema) getJoins(query types.Query, parentTable *types.Table, out *[]outputs.SqlJoinLine) error {
 	for _, with := range query.With {
-		line := s.getJoinLine(parentTable, with.Table)
+		line, err := s.getJoinLine(parentTable, with.Table)
+		if err != nil {
+			return err
+		}
 
 		line.Opts = outputs.SqlSelectOpts{
 			Limit:   with.Query.Limit,
@@ -259,16 +328,23 @@ func (s FromSchema) getJoins(query types.Query, parentTable *types.Table, out *[
 
 		*out = append(*out, line)
 
-		s.getJoins(with.Query, with.Table, out)
+		err = s.getJoins(with.Query, with.Table, out)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (s FromSchema) GetSelect(method types.Method) outputs.SqlSelect {
+func (s FromSchema) GetSelect(method types.Method) (outputs.SqlSelect, error) {
 	var fields []outputs.SqlSelectField
 	s.getSelectFields(method.Query, method.Table, &fields)
 
 	var joins []outputs.SqlJoinLine
-	s.getJoins(method.Query, method.Table, &joins)
+	err := s.getJoins(method.Query, method.Table, &joins)
+	if err != nil {
+		return outputs.SqlSelect{}, err
+	}
 
 	return outputs.SqlSelect{
 		Table:  method.Table.Name,
@@ -280,5 +356,5 @@ func (s FromSchema) GetSelect(method types.Method) outputs.SqlSelect {
 			Where:   method.Query.Where,
 			OrderBy: s.getSqlOrderBy(method.Table.Name, method.Query),
 		},
-	}
+	}, nil
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 type queryMap[T any] struct {
@@ -136,21 +137,42 @@ const getUserDataQuery = `select
 "MoodleAssignment"."category" as "MoodleAssignment_category"
 from "User"
 inner join "PSUserCourse" on "PSUserCourse"."userEmail" = "User"."email"
-inner join "PSUserAssignment" on "PSUserAssignment"."courseName" = "PSUserCourse"."courseName" and "PSUserAssignment"."userEmail" = "PSUserCourse"."userEmail"
+inner join (select * from "PSUserAssignment" where PSUserAssignment.scored != null and PSUserAssignment.total != null) as "PSUserAssignment" on "PSUserAssignment"."courseName" = "PSUserCourse"."courseName" and "PSUserAssignment"."userEmail" = "PSUserCourse"."userEmail"
 inner join "PSAssignment" on "PSUserAssignment"."assignmentName" = "PSAssignment"."name" and "PSUserAssignment"."courseName" = "PSAssignment"."courseName"
 inner join "PSUserMeeting" on "PSUserMeeting"."userEmail" = "PSUserCourse"."userEmail" and "PSUserMeeting"."courseName" = "PSUserCourse"."courseName"
-inner join "MoodleUserCourse" on "MoodleUserCourse"."userEmail" = "User"."email"
-inner join "MoodleCourse" on "MoodleUserCourse"."courseId" = "MoodleCourse"."id"
+inner join (select * from "MoodleUserCourse" where MoodleCourse.teacher = $1) as "MoodleUserCourse" on "MoodleUserCourse"."userEmail" = "User"."email"
+inner join (select * from "MoodleCourse" where MoodleCourse.id in ($2)) as "MoodleCourse" on "MoodleUserCourse"."courseId" = "MoodleCourse"."id"
 inner join "MoodlePage" on "MoodlePage"."courseId" = "MoodleCourse"."id"
 inner join "MoodleAssignment" on "MoodleAssignment"."courseId" = "MoodleCourse"."id"
-where User.email = ?
+where User.email = $0
 order by "User"."gpa" asc
 `
 
-func (q *Queries) GetUserData(ctx context.Context, args any) (GetUserData, error) {
-	rows, err := q.db.QueryContext(ctx, getUserDataQuery, args)
+func (q *Queries) GetUserData(ctx context.Context, userEmail string, teacher sql.NullString, ids []int) (*GetUserData, error) {
+	queryStr := getUserDataQuery
+
+	userEmailStr := `"` + userEmail + `"`
+	queryStr = strings.Replace(queryStr, "$0", userEmailStr, 1)
+
+	teacherStr := "null"
+	if teacher.Valid {
+		teacherStr = `"` + teacher.String + `"`
+	}
+	queryStr = strings.Replace(queryStr, "$1", teacherStr, 1)
+
+	idsJoined := ""
+	for i, e := range ids {
+		if i > 0 {
+			idsJoined += ", "
+		}
+		idsStr := fmt.Sprint(e)
+		idsJoined += idsStr
+	}
+	queryStr = strings.Replace(queryStr, "$2", idsJoined, 1)
+
+	rows, err := q.db.QueryContext(ctx, queryStr)
 	if err != nil {
-		return GetUserData{}, err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -213,7 +235,7 @@ func (q *Queries) GetUserData(ctx context.Context, args any) (GetUserData, error
 			&getUserData101.Category,
 		)
 		if err != nil {
-			return GetUserData{}, err
+			return nil, err
 		}
 
 		getUserDataPkey := fmt.Sprint(getUserData.Email)
@@ -290,11 +312,14 @@ func (q *Queries) GetUserData(ctx context.Context, args any) (GetUserData, error
 
 	err = rows.Close()
 	if err != nil {
-		return GetUserData{}, err
+		return nil, err
 	}
 	err = rows.Err()
 	if err != nil {
-		return GetUserData{}, err
+		return nil, err
 	}
-	return getUserDataMap.list[0], nil
+	if len(getUserDataMap.list) == 0 {
+		return nil, nil
+	}
+	return &getUserDataMap.list[0], nil
 }

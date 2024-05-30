@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/google/go-cmp/cmp"
@@ -38,15 +39,35 @@ func primitive() []cmp.Option {
 
 var sorts = primitive()
 
-func AddCustomSort[T any](newSorts... func(val T) string) {
+func AddCustomSort[T any](newSorts ...func(val T) string) {
 	for _, fn := range newSorts {
-		res := func (a, b T) bool {
+		res := func(a, b T) bool {
 			return fn(a) < fn(b)
 		}
 		sorts = append(sorts, cmpopts.SortSlices(res))
 	}
 }
 
-func DiffUnordered(expected, got any, opts... cmp.Option) string {
+func DiffUnordered(expected, got any, opts ...cmp.Option) string {
 	return cmp.Diff(expected, got, append(sorts, opts...)...)
+}
+
+func ReplaceAllStringSubmatchFunc(re *regexp.Regexp, str string, repl func([]string) string) string {
+	result := ""
+	cursor := 0
+	for _, match := range re.FindAllStringSubmatchIndex(str, -1) {
+		groups := []string{}
+		for i := 0; i < len(match); i += 2 {
+			if match[i] < 0 {
+				groups = append(groups, "")
+				continue
+			}
+			groups = append(groups, str[match[i]:match[i+1]])
+		}
+		matchStart := match[0]
+		matchEnd := match[1]
+		result += str[cursor:matchStart] + repl(groups)
+		cursor = matchEnd
+	}
+	return result + str[cursor:]
 }

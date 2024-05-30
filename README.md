@@ -89,7 +89,15 @@ create table Book (
                 },
             },
             // common select options
-            where: "Author.age > ?",
+            // note that interpolation of arguments in where must take the form of
+            // $<argname>:<int | str | float | bool>(?)([])
+            // ex: $age:int -> func (..., age int) ...
+            // ex: $name:str? -> func (..., name sql.NullString) ...
+            // ex: $emails:str[] -> func (..., name []string) ...
+            // ex: $null_emails:str?[] -> func (..., name []sql.NullString) ...
+            // passing an empty slice or `nil` into an arg with an array type
+            // will be treated as `null`
+            where: "Author.age > $age:int",
             orderBy: {
                 age: "asc",
             },
@@ -110,7 +118,7 @@ select
 "Book"."name" as "Book_name"
 from "Author"
 inner join (select * from "Book"  order by "Book"."name" dsc limit 5) as "Book" on "Book"."authorId" = "Author"."id"
-where Author.age > ?
+where Author.age > $age
 order by "Author"."age" asc
 offset 4
 ```

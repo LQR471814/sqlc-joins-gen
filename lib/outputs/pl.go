@@ -13,8 +13,6 @@ const (
 // the type part of a field definition
 type PlType struct {
 	Primitive PlPrimitive
-	IsRowDef  bool
-	RowDef    int
 	Nullable  bool
 	Array     bool
 }
@@ -24,8 +22,10 @@ type PlFieldDef struct {
 	// just for metadata usage
 	TableFieldName string
 
-	Name string
-	Type PlType
+	Name     string
+	Type     PlType
+	IsRowDef bool
+	RowDef   int
 }
 
 // a struct, object typedef, or class
@@ -46,6 +46,11 @@ type PlScanEntry struct {
 	Field  *PlFieldDef
 }
 
+type PlQueryArg struct {
+	Name string
+	Type PlType
+}
+
 // refers to a collection of queries
 type PlMethodDef struct {
 	MethodName string
@@ -54,6 +59,7 @@ type PlMethodDef struct {
 	RootDef    *PlRowDef
 	// defines the order of columns when scanning rows in
 	ScanOrder []PlScanEntry
+	Args      []PlQueryArg
 	Sql       string
 }
 

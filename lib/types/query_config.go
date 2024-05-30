@@ -37,7 +37,7 @@ type QueryCfg struct {
 
 func (cfg QueryCfg) ToQuery(schema Schema, parentTable *Table) (Query, error) {
 	query := Query{
-		Where:  cfg.Where,
+		Where:  &cfg.Where,
 		Limit:  cfg.Limit,
 		Offset: cfg.Offset,
 	}

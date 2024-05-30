@@ -11,7 +11,7 @@ type SqlJoinOn struct {
 type SqlSelectOpts struct {
 	Limit   int
 	Offset  int
-	Where   string
+	Where   *string
 	OrderBy []SqlOrderBy
 }
 

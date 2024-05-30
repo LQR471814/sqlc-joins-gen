@@ -17,6 +17,7 @@
                             with: {
                                 PSAssignment: {},
                             },
+                            where: "PSUserAssignment.scored != null and PSUserAssignment.total != null",
                         },
                         PSUserMeeting: {}
                     },
@@ -32,11 +33,13 @@
                                 MoodlePage: {},
                                 MoodleAssignment: {},
                             },
+                            where: "MoodleCourse.id in ($ids:int[])",
                         },
                     },
+                    where: "MoodleCourse.teacher = $teacher:str?"
                 },
             },
-            where: "User.email = ?",
+            where: "User.email = $userEmail:str",
             orderBy: {
                 gpa: "asc",
             }

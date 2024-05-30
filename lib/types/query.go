@@ -26,7 +26,7 @@ type Query struct {
 	Columns []QueryColumn
 	With    []QueryWith
 	OrderBy []QueryOrderBy
-	Where   string
+	Where   *string
 	Limit   int
 	Offset  int
 }

@@ -273,7 +273,10 @@ func TestGetJoinLine(t *testing.T) {
 
 	for _, test := range testCases {
 		generator := FromSchema{Schema: test.schema}
-		result := generator.getJoinLine(test.source, test.target)
+		result, err := generator.getJoinLine(test.source, test.target)
+		if err != nil {
+			t.Fatal(err)
+		}
 		diff := utils.DiffUnordered(test.expected, result)
 		if diff != "" {
 			t.Fatalf(
@@ -341,10 +344,10 @@ func TestGetRowDef(t *testing.T) {
 						{
 							Name: "Author",
 							Type: outputs.PlType{
-								IsRowDef: true,
-								Array:    false,
-								RowDef:   1,
+								Array: false,
 							},
+							IsRowDef: true,
+							RowDef:   1,
 						},
 					},
 				},
@@ -379,10 +382,9 @@ func TestGetRowDef(t *testing.T) {
 			},
 			expected: []*outputs.PlRowDef{
 				{
-					DefName:   "getAuthorAndBooks",
-					TableName: "Author",
-					PrimaryKey: []*outputs.PlFieldDef{
-					},
+					DefName:    "getAuthorAndBooks",
+					TableName:  "Author",
+					PrimaryKey: []*outputs.PlFieldDef{},
 					Fields: []*outputs.PlFieldDef{
 						{
 							Name:           "id",
@@ -401,18 +403,17 @@ func TestGetRowDef(t *testing.T) {
 						{
 							Name: "Book",
 							Type: outputs.PlType{
-								Array:    true,
-								IsRowDef: true,
-								RowDef:   1,
+								Array: true,
 							},
+							IsRowDef: true,
+							RowDef:   1,
 						},
 					},
 				},
 				{
-					DefName:   "getAuthorAndBooks0",
-					TableName: "Book",
-					PrimaryKey: []*outputs.PlFieldDef{
-					},
+					DefName:    "getAuthorAndBooks0",
+					TableName:  "Book",
+					PrimaryKey: []*outputs.PlFieldDef{},
 					Fields: []*outputs.PlFieldDef{
 						{
 							Name:           "id",
@@ -461,18 +462,18 @@ func TestGetRowDef(t *testing.T) {
 						{
 							Name: "PSUserCourse",
 							Type: outputs.PlType{
-								IsRowDef: true,
-								Array:    true,
-								RowDef:   1,
+								Array: true,
 							},
+							IsRowDef: true,
+							RowDef:   1,
 						},
 						{
 							Name: "MoodleUserCourse",
 							Type: outputs.PlType{
-								IsRowDef: true,
-								Array:    true,
-								RowDef:   2,
+								Array: true,
 							},
+							IsRowDef: true,
+							RowDef:   2,
 						},
 					},
 				},
@@ -494,18 +495,16 @@ func TestGetRowDef(t *testing.T) {
 						{
 							Name: "PSUserAssignment",
 							Type: outputs.PlType{
-								IsRowDef: true,
-								Array:    true,
-								RowDef:   3,
+								Array: true,
 							},
+							IsRowDef: true,
+							RowDef:   3,
 						},
 						{
-							Name: "PSUserMeeting",
-							Type: outputs.PlType{
-								IsRowDef: true,
-								Array:    true,
-								RowDef:   4,
-							},
+							Name:     "PSUserMeeting",
+							Type:     outputs.PlType{Array: true},
+							IsRowDef: true,
+							RowDef:   4,
 						},
 					},
 				},
@@ -525,11 +524,9 @@ func TestGetRowDef(t *testing.T) {
 							Type:           outputs.PlType{Primitive: outputs.STRING},
 						},
 						{
-							Name: "MoodleCourse",
-							Type: outputs.PlType{
-								IsRowDef: true,
-								RowDef:   5,
-							},
+							Name:     "MoodleCourse",
+							IsRowDef: true,
+							RowDef:   5,
 						},
 					},
 				},
@@ -574,11 +571,9 @@ func TestGetRowDef(t *testing.T) {
 							Type:           outputs.PlType{Primitive: outputs.FLOAT, Nullable: true},
 						},
 						{
-							Name: "PSAssignment",
-							Type: outputs.PlType{
-								IsRowDef: true,
-								RowDef:   6,
-							},
+							Name:     "PSAssignment",
+							IsRowDef: true,
+							RowDef:   6,
 						},
 					},
 				},
@@ -637,18 +632,18 @@ func TestGetRowDef(t *testing.T) {
 						{
 							Name: "MoodlePage",
 							Type: outputs.PlType{
-								IsRowDef: true,
-								Array:    true,
-								RowDef:   7,
+								Array: true,
 							},
+							IsRowDef: true,
+							RowDef:   7,
 						},
 						{
 							Name: "MoodleAssignment",
 							Type: outputs.PlType{
-								IsRowDef: true,
-								Array:    true,
-								RowDef:   8,
+								Array: true,
 							},
+							IsRowDef: true,
+							RowDef:   8,
 						},
 					},
 				},

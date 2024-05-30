@@ -38,16 +38,17 @@ func generate(
 
 	script := outputs.PlScript{}
 	for _, method := range methods {
-		selectStmt := fromSchema.GetSelect(method)
-		sql := sqlgen.Select(selectStmt)
-
-		out := outputs.PlMethodDef{
-			MethodName: method.Name,
-			Sql:        sql,
-			FirstOnly:  method.Return == types.FIRST,
+		selectStmt, err := fromSchema.GetSelect(method)
+		if err != nil {
+			return err
 		}
 
-		fromSchema.GetRowDefs(method, &out.RowDefs)
+		out, err := fromSchema.GetMethodDef(method)
+		if err != nil {
+			return err
+		}
+		out.Sql = sqlgen.Select(selectStmt)
+
 		for _, selectField := range selectStmt.Select {
 			defIdx := -1
 			for i, row := range out.RowDefs {
@@ -57,10 +58,10 @@ func generate(
 				}
 			}
 			if defIdx < 0 {
-				panic(fmt.Sprintf(
+				return fmt.Errorf(
 					"could not find table '%s' in RowDefs for '%s'",
 					selectField.Table, method.Name,
-				))
+				)
 			}
 
 			fieldIdx := -1
@@ -71,10 +72,10 @@ func generate(
 				}
 			}
 			if fieldIdx < 0 {
-				panic(fmt.Sprintf(
+				return fmt.Errorf(
 					"could not find field '%s' in RowDef '%s' for '%s'",
 					selectField.Table, out.RowDefs[defIdx].DefName, method.Name,
-				))
+				)
 			}
 
 			out.ScanOrder = append(out.ScanOrder, outputs.PlScanEntry{

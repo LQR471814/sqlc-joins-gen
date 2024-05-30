@@ -3,6 +3,8 @@ package outputs
 import "testing"
 
 func TestJoinLine(t *testing.T) {
+	tableWhere := "Table.field1 = ?"
+
 	cases := []struct {
 		input    SqlJoinLine
 		expected string
@@ -35,7 +37,7 @@ func TestJoinLine(t *testing.T) {
 				Opts: SqlSelectOpts{
 					Limit:  20,
 					Offset: 23,
-					Where:  "Table.field1 = ?",
+					Where:  &tableWhere,
 					OrderBy: []SqlOrderBy{
 						{
 							Table:     "Table",

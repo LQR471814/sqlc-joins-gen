@@ -5,6 +5,7 @@ package simple_example
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 type queryMap[T any] struct {
@@ -39,15 +40,20 @@ const getAuthorsQuery = `select
 "Book"."authorId" as "Book_authorId",
 "Book"."name" as "Book_name"
 from "Author"
-inner join (select * from "Book"  order by "Book"."name" dsc limit 5) as "Book" on "Book"."authorId" = "Author"."id"
-where Author.age > ?
+inner join (select * from "Book" order by "Book"."name" dsc limit 5) as "Book" on "Book"."authorId" = "Author"."id"
+where Author.age > $0
 order by "Author"."age" asc
 offset 4`
 
-func (q *Queries) GetAuthors(ctx context.Context, args any) (GetAuthors, error) {
-	rows, err := q.db.QueryContext(ctx, getAuthorsQuery, args)
+func (q *Queries) GetAuthors(ctx context.Context, age int) (*GetAuthors, error) {
+	queryStr := getAuthorsQuery
+
+	ageStr := fmt.Sprint(age)
+	queryStr = strings.Replace(queryStr, "$0", ageStr, 1)
+
+	rows, err := q.db.QueryContext(ctx, queryStr)
 	if err != nil {
-		return GetAuthors{}, err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -66,7 +72,7 @@ func (q *Queries) GetAuthors(ctx context.Context, args any) (GetAuthors, error) 
 			&getAuthors0.Name,
 		)
 		if err != nil {
-			return GetAuthors{}, err
+			return nil, err
 		}
 
 		getAuthorsPkey := fmt.Sprint(getAuthors.Id)
@@ -87,11 +93,14 @@ func (q *Queries) GetAuthors(ctx context.Context, args any) (GetAuthors, error) 
 
 	err = rows.Close()
 	if err != nil {
-		return GetAuthors{}, err
+		return nil, err
 	}
 	err = rows.Err()
 	if err != nil {
-		return GetAuthors{}, err
+		return nil, err
 	}
-	return getAuthorsMap.list[0], nil
+	if len(getAuthorsMap.list) == 0 {
+		return nil, nil
+	}
+	return &getAuthorsMap.list[0], nil
 }

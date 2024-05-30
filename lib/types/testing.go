@@ -709,6 +709,8 @@ func getUserDataMethod() Method {
 	moodleUserCourse := schema.MustFindTable("MoodleUserCourse")
 	moodleCourse := schema.MustFindTable("MoodleCourse")
 
+	whereUser := "User.email = $userEmail:str"
+
 	return Method{
 		Name:   "getUserData",
 		Table:  user,
@@ -770,7 +772,7 @@ func getUserDataMethod() Method {
 					},
 				},
 			},
-			Where: "User.email = ?",
+			Where: &whereUser,
 			OrderBy: []QueryOrderBy{
 				{
 					Column:  user.FindColumn("gpa"),

@@ -30,7 +30,7 @@
                 },
             },
             // common select options
-            where: "Author.age > ?",
+            where: "Author.age > $age:int",
             orderBy: {
                 age: "asc",
             },

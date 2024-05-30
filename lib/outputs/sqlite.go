@@ -25,14 +25,8 @@ func (g SqliteGenerator) joinLine(line SqlJoinLine) string {
 	onClause := strings.Join(clause, " and ")
 
 	if line.Opts.Limit > 0 || line.Opts.Offset > 0 ||
-		line.Opts.Where != "" || line.Opts.OrderBy != nil {
-		subselect := fmt.Sprintf(
-			`select * from "%s" %s %s %s`,
-			line.Table,
-			g.where(line.Opts.Where),
-			g.orderByList(line.Opts.OrderBy),
-			g.limitAndOffset(line.Opts.Limit, line.Opts.Offset),
-		)
+		(line.Opts.Where != nil && *line.Opts.Where != "") || line.Opts.OrderBy != nil {
+		subselect := g.selectSubquery(line.Table, line.Opts)
 		return fmt.Sprintf(
 			`inner join (%s) as "%s" on %s`,
 			subselect, line.Table, onClause,
@@ -111,13 +105,20 @@ func (g SqliteGenerator) limitAndOffset(limit, offset int) string {
 }
 
 func (g SqliteGenerator) selectSubquery(table string, opts SqlSelectOpts) string {
-	return fmt.Sprintf(
-		`select * from "%s" %s %s %s`,
-		table,
-		g.where(opts.Where),
-		g.orderByList(opts.OrderBy),
-		g.limitAndOffset(opts.Limit, opts.Offset),
-	)
+	where := g.where(*opts.Where)
+	orderBy := g.orderByList(opts.OrderBy)
+	limitAndOffset := g.limitAndOffset(opts.Limit, opts.Offset)
+	res := fmt.Sprintf(`select * from "%s"`, table)
+	if where != "" {
+		res += " " + where
+	}
+	if orderBy != "" {
+		res += " " + orderBy
+	}
+	if limitAndOffset != "" {
+		res += " " + limitAndOffset
+	}
+	return res
 }
 
 func (g SqliteGenerator) Select(s SqlSelect) string {
@@ -144,7 +145,7 @@ func (g SqliteGenerator) Select(s SqlSelect) string {
 		g.selectFieldList(s.Select),
 		s.Table,
 		g.joinLineList(s.Joins),
-		g.where(s.Opts.Where),
+		g.where(*s.Opts.Where),
 		g.orderByList(s.Opts.OrderBy),
 		g.limitAndOffset(s.Opts.Limit, s.Opts.Offset),
 	)

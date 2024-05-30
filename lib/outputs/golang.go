@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"sqlc-joins-gen/lib/utils"
+	"strings"
 )
 
 func goId(name string) string {
@@ -42,10 +43,7 @@ type GolangGenerator struct {
 	PackagePath string
 }
 
-func (g GolangGenerator) typeStr(defs []*PlRowDef, t PlType) string {
-	if t.IsRowDef {
-		return upperGoId(defs[t.RowDef].DefName)
-	}
+func (g GolangGenerator) baseType(t PlType) string {
 	switch t.Primitive {
 	case INT:
 		if t.Nullable {
@@ -71,6 +69,14 @@ func (g GolangGenerator) typeStr(defs []*PlRowDef, t PlType) string {
 	panic(fmt.Sprintf("unknown primitive type '%d'", t.Primitive))
 }
 
+func (g GolangGenerator) typeStr(t PlType) string {
+	str := g.baseType(t)
+	if t.Array {
+		return "[]" + str
+	}
+	return str
+}
+
 func (g GolangGenerator) writeStructDef(defs []*PlRowDef, out *bytes.Buffer) {
 	for _, row := range defs {
 		out.WriteString(fmt.Sprintf(
@@ -79,9 +85,14 @@ func (g GolangGenerator) writeStructDef(defs []*PlRowDef, out *bytes.Buffer) {
 		))
 
 		for _, def := range row.Fields {
-			typeStr := g.typeStr(defs, def.Type)
-			if def.Type.Array {
-				typeStr = "[]" + typeStr
+			var typeStr string
+			if def.IsRowDef {
+				typeStr = upperGoId(defs[def.RowDef].DefName)
+				if def.Type.Array {
+					typeStr = "[]" + typeStr
+				}
+			} else {
+				typeStr = g.typeStr(def.Type)
 			}
 			out.WriteString(fmt.Sprintf(
 				"%s %s\n",
@@ -94,7 +105,7 @@ func (g GolangGenerator) writeStructDef(defs []*PlRowDef, out *bytes.Buffer) {
 
 func (g GolangGenerator) scanRowCode(defs []*PlRowDef, root *PlRowDef, out *bytes.Buffer) {
 	for _, field := range root.Fields {
-		if field.Type.IsRowDef {
+		if field.IsRowDef {
 			continue
 		}
 		out.WriteString(fmt.Sprintf(
@@ -104,14 +115,15 @@ func (g GolangGenerator) scanRowCode(defs []*PlRowDef, root *PlRowDef, out *byte
 		))
 	}
 	for _, field := range root.Fields {
-		if !field.Type.IsRowDef {
+		if !field.IsRowDef {
 			continue
 		}
-		g.scanRowCode(defs, defs[field.Type.RowDef], out)
+		g.scanRowCode(defs, defs[field.RowDef], out)
 	}
 }
 
 func (g GolangGenerator) queryFunc(
+	args []PlQueryArg,
 	method *PlMethodDef,
 	out *bytes.Buffer,
 ) {
@@ -120,27 +132,100 @@ func (g GolangGenerator) queryFunc(
 
 	var returnType string
 	if method.FirstOnly {
-		returnType = upperRootDefName
+		returnType = "*" + upperRootDefName
 	} else {
 		returnType = fmt.Sprintf("[]%s", upperRootDefName)
 	}
-	var errReturnStmt string
-	if method.FirstOnly {
-		errReturnStmt = fmt.Sprintf("if err != nil { return %s{}, err }", upperRootDefName)
-	} else {
-		errReturnStmt = "if err != nil { return nil, err }"
+	errReturnStmt := "if err != nil { return nil, err }"
+
+	var argsDef string
+	for i, arg := range args {
+		if i > 0 {
+			argsDef += ", "
+		}
+		argsDef += fmt.Sprintf("%s %s", goId(arg.Name), g.typeStr(arg.Type))
 	}
 
 	out.WriteString(fmt.Sprintf(
-		// TODO: add args
-		"func (q *Queries) %s(ctx context.Context, args any) (%s, error) {\n",
-		utils.Capitalize(method.MethodName), returnType,
+		"func (q *Queries) %s(ctx context.Context, %s) (%s, error) {\n",
+		utils.Capitalize(method.MethodName), argsDef, returnType,
 	))
 
-	out.WriteString(fmt.Sprintf(
-		"rows, err := q.db.QueryContext(ctx, %sQuery, args)\n",
-		method.MethodName,
-	))
+	out.WriteString(fmt.Sprintf("queryStr := %sQuery\n", method.RootDef.DefName))
+
+	for i, arg := range args {
+		out.WriteString("\n")
+		argName := goId(arg.Name)
+
+		formatStmt := ""
+		switch arg.Type.Primitive {
+		case INT:
+			if arg.Type.Nullable {
+				formatStmt += fmt.Sprintf("%sStr := \"null\"\n", argName)
+				formatStmt += fmt.Sprintf("if %s.Valid {\n", argName)
+				formatStmt += fmt.Sprintf("%sStr = fmt.Sprint(__ARG__.Int32)\n", argName)
+				formatStmt += "}\n"
+				break
+			}
+			formatStmt = fmt.Sprintf("%sStr := fmt.Sprint(__ARG__)\n", argName)
+		case FLOAT:
+			if arg.Type.Nullable {
+				formatStmt += fmt.Sprintf("%sStr := \"null\"\n", argName)
+				formatStmt += "if __ARG__.Valid {\n"
+				formatStmt += fmt.Sprintf("%sStr = fmt.Sprint(__ARG__.Float64)\n", argName)
+				formatStmt += "}\n"
+				break
+			}
+			formatStmt = fmt.Sprintf("%sStr := fmt.Sprint(__ARG__)\n", argName)
+		case STRING:
+			if arg.Type.Nullable {
+				formatStmt += fmt.Sprintf("%sStr := \"null\"\n", argName)
+				formatStmt += "if __ARG__.Valid {\n"
+				formatStmt += fmt.Sprintf("%sStr = `\"` + __ARG__.String + `\"`\n", argName)
+				formatStmt += "}\n"
+				break
+			}
+			formatStmt = fmt.Sprintf("%sStr := `\"` + __ARG__ + `\"`\n", argName)
+		case BOOL:
+			if arg.Type.Nullable {
+				formatStmt += fmt.Sprintf("%sStr := \"null\"\n", argName)
+				formatStmt += "if __ARG__.Valid {\n"
+				formatStmt += fmt.Sprintf("%sInt := 0\n", argName)
+				formatStmt += fmt.Sprintf("if __ARG__.Bool {\n")
+				formatStmt += fmt.Sprintf("%sInt = 1\n", argName)
+				formatStmt += "}\n"
+				formatStmt += fmt.Sprintf("%sStr = fmt.Sprint(%sInt)\n", argName, argName)
+				formatStmt += "}\n"
+				break
+			}
+			formatStmt += fmt.Sprintf("%sInt := 0\n", argName)
+			formatStmt += "if __ARG__ {\n"
+			formatStmt += fmt.Sprintf("%sInt = 1\n", argName)
+			formatStmt += "}\n"
+			formatStmt += fmt.Sprintf("%sStr := fmt.Sprint(%sInt)\n", argName, argName)
+		}
+
+		if arg.Type.Array {
+			out.WriteString(fmt.Sprintf("%sJoined := \"\"\n", argName))
+			out.WriteString(fmt.Sprintf("for i, e := range %s {\n", argName))
+			out.WriteString(fmt.Sprintf("if i > 0 { %sJoined += \", \" }\n", argName))
+			out.WriteString(strings.ReplaceAll(formatStmt, "__ARG__", "e"))
+			out.WriteString(fmt.Sprintf("%sJoined += %sStr\n", argName, argName))
+			out.WriteString("}\n")
+			out.WriteString(fmt.Sprintf(
+				"queryStr = strings.Replace(queryStr, \"$%d\", %sJoined, 1)\n",
+				i, argName,
+			))
+			continue
+		}
+		out.WriteString(strings.ReplaceAll(formatStmt, "__ARG__", argName))
+		out.WriteString(fmt.Sprintf(
+			"queryStr = strings.Replace(queryStr, \"$%d\", %sStr, 1)\n",
+			i, argName,
+		))
+	}
+
+	out.WriteString("\nrows, err := q.db.QueryContext(ctx, queryStr)\n")
 	out.WriteString(fmt.Sprintf("%s; defer rows.Close()\n\n", errReturnStmt))
 
 	for _, row := range defs {
@@ -205,11 +290,12 @@ func (g GolangGenerator) queryFunc(
 	out.WriteString("err = rows.Err()\n")
 	out.WriteString(fmt.Sprintf("%s\n", errReturnStmt))
 
-	indexSuffix := ""
-	if method.FirstOnly {
-		indexSuffix = "[0]"
+	if !method.FirstOnly {
+		out.WriteString(fmt.Sprintf("return %sMap.list, nil\n}", method.MethodName))
+		return
 	}
-	out.WriteString(fmt.Sprintf("return %sMap.list%s, nil\n}", method.MethodName, indexSuffix))
+	out.WriteString(fmt.Sprintf("if len(%sMap.list) == 0 { return nil, nil }\n", method.MethodName))
+	out.WriteString(fmt.Sprintf("return &%sMap.list[0], nil\n}", method.MethodName))
 }
 
 type GoCodegenOptions struct {
@@ -241,7 +327,7 @@ func newQueryMap[T any]() queryMap[T] {
 			method.RootDef.DefName,
 			method.Sql,
 		))
-		g.queryFunc(method, out)
+		g.queryFunc(method.Args, method, out)
 	}
 
 	err := os.MkdirAll(g.PackagePath, 0777)
