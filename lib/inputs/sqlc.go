@@ -112,6 +112,9 @@ func LoadSqlcConfig(pathOrDir string, isDir bool) ([]SqlcCodegenTask, error) {
 		)
 		joinsBuff, err := os.ReadFile(joinsPath)
 		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
 			return nil, err
 		}
 

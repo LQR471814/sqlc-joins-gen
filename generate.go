@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/lqr471814/sqlc-joins-gen/lib/inputs"
 	"github.com/lqr471814/sqlc-joins-gen/lib/outputs"
 	"github.com/lqr471814/sqlc-joins-gen/lib/transform"

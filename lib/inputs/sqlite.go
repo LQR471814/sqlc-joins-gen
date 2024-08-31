@@ -2,8 +2,9 @@ package inputs
 
 import (
 	"fmt"
-	"github.com/lqr471814/sqlc-joins-gen/lib/types"
 	"strings"
+
+	"github.com/lqr471814/sqlc-joins-gen/lib/types"
 
 	sqlparse "github.com/alicebob/sqlittle/sql"
 )
@@ -15,7 +16,8 @@ func removeSqliteCommentLines(block string) string {
 		if strings.HasPrefix(l, "--") {
 			continue
 		}
-		result += l + "\n"
+		noncomment := strings.Split(l, "--")
+		result += strings.TrimRight(noncomment[0], " \t") + "\n"
 	}
 	return result
 }
@@ -29,10 +31,11 @@ func parseSqliteScript(script string) ([]any, error) {
 		if trimmed == "" {
 			continue
 		}
+		commentless := removeSqliteCommentLines(trimmed)
 
-		stmt, err := sqlparse.Parse(removeSqliteCommentLines(trimmed))
+		stmt, err := sqlparse.Parse(commentless)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("sqlite statement parse failed: %v", err)
 		}
 		if stmt == nil {
 			continue

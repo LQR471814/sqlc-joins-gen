@@ -6,8 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"github.com/lqr471814/sqlc-joins-gen/lib/utils"
 	"strings"
+
+	"github.com/lqr471814/sqlc-joins-gen/lib/utils"
 )
 
 func goId(name string) string {
@@ -249,7 +250,7 @@ func (g GolangGenerator) queryFunc(
 			if i > 0 {
 				out.WriteString(", ")
 			}
-			out.WriteString(fmt.Sprintf("%s.%s", row.DefName, utils.Capitalize(col.Name)))
+			out.WriteString(fmt.Sprintf("%s.%s", row.DefName, upperGoId(col.Name)))
 		}
 		out.WriteString(")\n")
 
