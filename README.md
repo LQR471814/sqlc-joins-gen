@@ -5,7 +5,9 @@
 
 ### install
 
-currently you should just clone the repo and run `go build` inside the `cmd/cli` directory, but publishing to the go pkg registry may happen in the future.
+```sh
+go install github.com/lqr471814/sqlc-joins-gen@latest
+```
 
 ### usage
 
