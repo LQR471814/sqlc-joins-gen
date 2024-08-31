@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"sqlc-joins-gen/lib/utils"
+	"github.com/lqr471814/sqlc-joins-gen/lib/utils"
 	"strings"
 )
 

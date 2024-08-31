@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"sqlc-joins-gen/lib/inputs"
-	"sqlc-joins-gen/lib/outputs"
-	"sqlc-joins-gen/lib/transform"
-	"sqlc-joins-gen/lib/types"
+	"github.com/lqr471814/sqlc-joins-gen/lib/inputs"
+	"github.com/lqr471814/sqlc-joins-gen/lib/outputs"
+	"github.com/lqr471814/sqlc-joins-gen/lib/transform"
+	"github.com/lqr471814/sqlc-joins-gen/lib/types"
 
 	"github.com/titanous/json5"
 )

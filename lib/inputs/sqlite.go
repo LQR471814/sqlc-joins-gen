@@ -2,7 +2,7 @@ package inputs
 
 import (
 	"fmt"
-	"sqlc-joins-gen/lib/types"
+	"github.com/lqr471814/sqlc-joins-gen/lib/types"
 	"strings"
 
 	sqlparse "github.com/alicebob/sqlittle/sql"

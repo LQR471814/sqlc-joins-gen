@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"os"
 	"path"
-	"sqlc-joins-gen/lib/inputs"
-	"sqlc-joins-gen/lib/outputs"
+	"github.com/lqr471814/sqlc-joins-gen/lib/inputs"
+	"github.com/lqr471814/sqlc-joins-gen/lib/outputs"
 )
 
 func main() {

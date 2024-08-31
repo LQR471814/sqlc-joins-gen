@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"sqlc-joins-gen/lib/outputs"
-	"sqlc-joins-gen/lib/types"
-	"sqlc-joins-gen/lib/utils"
+	"github.com/lqr471814/sqlc-joins-gen/lib/outputs"
+	"github.com/lqr471814/sqlc-joins-gen/lib/types"
+	"github.com/lqr471814/sqlc-joins-gen/lib/utils"
 )
 
 type FromSchema struct {

@@ -1,6 +1,6 @@
 package types
 
-import "sqlc-joins-gen/lib/utils"
+import "github.com/lqr471814/sqlc-joins-gen/lib/utils"
 
 func init() {
 	// unordered sorting support for schema.go
