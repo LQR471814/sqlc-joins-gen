@@ -1,4 +1,4 @@
-module sqlc-joins-gen
+module github.com/lqr471814/sqlc-joins-gen
 
 go 1.22.3
 
