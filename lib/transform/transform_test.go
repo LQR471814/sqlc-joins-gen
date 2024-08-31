@@ -745,7 +745,7 @@ func TestGetRowDef(t *testing.T) {
 	for _, test := range testCases {
 		generator := FromSchema{Schema: test.schema}
 		var result []*outputs.PlRowDef
-		generator.GetRowDefs(test.method, &result)
+		generator.getRowDefs(test.method, &result)
 
 		diff := utils.DiffUnordered(
 			test.expected, result,
