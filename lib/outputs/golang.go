@@ -88,7 +88,7 @@ func (g GolangGenerator) writeStructDef(defs []*PlRowDef, out *bytes.Buffer) {
 		for _, def := range row.Fields {
 			var typeStr string
 			if def.IsRowDef {
-				typeStr = upperGoId(defs[def.RowDef].DefName)
+				typeStr = "*" + upperGoId(defs[def.RowDef].DefName)
 				if def.Type.Array {
 					typeStr = "[]" + typeStr
 				}
@@ -135,7 +135,7 @@ func (g GolangGenerator) queryFunc(
 	if method.FirstOnly {
 		returnType = "*" + upperRootDefName
 	} else {
-		returnType = fmt.Sprintf("[]%s", upperRootDefName)
+		returnType = fmt.Sprintf("[]*%s", upperRootDefName)
 	}
 	errReturnStmt := "if err != nil { return nil, err }"
 
@@ -255,28 +255,28 @@ func (g GolangGenerator) queryFunc(
 		out.WriteString(")\n")
 
 		out.WriteString(fmt.Sprintf(
-			"%sExisting, ok := %sMap.dict[%sPkey]\n",
-			row.DefName, row.DefName, row.DefName,
+			"%[1]sExisting, ok := %[1]sMap.dict[%[1]sPkey]\n",
+			row.DefName,
 		))
 		out.WriteString("if !ok {\n")
+		out.WriteString(fmt.Sprintf("%[1]sExisting = &%[1]s\n", row.DefName))
 		out.WriteString(fmt.Sprintf(
-			"%sMap.list = append(%sMap.list, %s)\n",
-			row.DefName, row.DefName, row.DefName,
+			"%[1]sMap.list = append(%[1]sMap.list, %[1]sExisting)\n",
+			row.DefName,
 		))
 		out.WriteString(fmt.Sprintf(
-			"%sMap.dict[%sPkey] = &%sMap.list[len(%sMap.list)-1]\n",
-			row.DefName, row.DefName, row.DefName, row.DefName,
+			"%[1]sMap.dict[%[1]sPkey] = %[1]sExisting\n",
+			row.DefName,
 		))
 		if row.Parent != nil && row.ParentField != nil {
 			if row.ParentField.Type.Array {
 				out.WriteString(fmt.Sprintf(
-					"%sExisting.%s = append(%sExisting.%s, *%sExisting)\n",
-					row.Parent.DefName, row.TableName, row.Parent.DefName, row.TableName,
-					row.DefName,
+					"%[1]sExisting.%[2]s = append(%[1]sExisting.%[2]s, %[3]sExisting)\n",
+					row.Parent.DefName, row.TableName, row.DefName,
 				))
 			} else {
 				out.WriteString(fmt.Sprintf(
-					"%sExisting.%s = *%sExisting\n",
+					"%sExisting.%s = %sExisting\n",
 					row.Parent.DefName, row.TableName, row.DefName,
 				))
 			}
@@ -311,7 +311,7 @@ func (g GolangGenerator) Generate(script PlScript) error {
 	out.WriteString("import \"github.com/petar/GoLLRB/llrb\"\n\n")
 	out.WriteString(`type queryMap[T any] struct {
 	dict map[string]*T
-	list []T
+	list []*T
 }
 
 func newQueryMap[T any]() queryMap[T] {
